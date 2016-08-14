@@ -1,4 +1,4 @@
-// Project specific build dependencies
+// Module specific build dependencies
 repositories {
     jcenter()
 }
@@ -14,10 +14,11 @@ buildscript {
     }
 }
 
-// Enable necessary plugins
+// Plugins targeting this particular module
 apply plugin: 'me.tatarka.retrolambda'
 apply plugin: 'com.android.library'
 
+// Android configuration
 android {
     compileSdkVersion 23
     buildToolsVersion '23.0.2'
@@ -46,3 +47,11 @@ dependencies {
 
     testCompile 'junit:junit:4.12'
 }
+
+// Custom archive build configurations
+apply from: 'aar.gradle'
+apply from: 'jar.gradle'
+apply from: 'jacoco.gradle'
+apply from: 'coveralls.gradle'
+apply from: 'publish.gradle'
+apply from: 'bintray.gradle'
