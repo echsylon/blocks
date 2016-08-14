@@ -1,0 +1,28 @@
+# Only buld the master branch
+general:
+  branches:
+    only:
+      - master
+
+# Configure the virtual machine. Set a Java 8 environment.
+machine:
+  java:
+    version: oraclejdk8
+
+# Run library release tests and publish test results.
+test:
+  override:
+    - ./gradlew :network:clean :network:test :network:coveralls
+  post:
+    - mkdir -p $CIRCLE_TEST_REPORTS/junit/release/
+    - find . -type f -regex ".*/build/test-results/release/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/release \;
+
+# Trigger a Bintray deployment when a tag of a certain pattern is pushed to the
+# master branch in the repo owned echsylon (disqualifying any forked repos).
+deployment:
+  release:
+    tag: /v[0-9]+(\.[0-9]+)*/
+    owner: echsylon
+    commands:
+      - ./gradlew :network:bintrayUpload
+
