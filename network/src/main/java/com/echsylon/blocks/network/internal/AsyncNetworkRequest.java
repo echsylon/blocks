@@ -1,8 +1,5 @@
 package com.echsylon.blocks.network.internal;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-
 import com.echsylon.blocks.network.ErrorListener;
 import com.echsylon.blocks.network.FinishListener;
 import com.echsylon.blocks.network.NetworkClient;
@@ -41,12 +38,12 @@ public final class AsyncNetworkRequest<T> extends FutureTask<T> implements Reque
      * @param <V>                The result type declaration.
      * @return A request object to attach any callback implementations to.
      */
-    public static <V> Request<V> prepareRequest(@NonNull NetworkClient networkClient,
-                                                @NonNull String url,
-                                                @NonNull String method,
-                                                @Nullable Map<String, String> headers,
-                                                @Nullable String jsonContent,
-                                                @NonNull Class<V> expectedResultType) {
+    public static <V> Request<V> prepareRequest(NetworkClient networkClient,
+                                                String url,
+                                                String method,
+                                                Map<String, String> headers,
+                                                String jsonContent,
+                                                Class<V> expectedResultType) {
 
         return lastRequest == null || !url.equals(lastRequest.id) ?
                 new AsyncNetworkRequest<>(networkClient, url, method, headers, jsonContent, expectedResultType) :
@@ -66,12 +63,12 @@ public final class AsyncNetworkRequest<T> extends FutureTask<T> implements Reque
      * @param jsonContent        Any optional json to send along with the request.
      * @param expectedResultType The Java class implementation of the expected result.
      */
-    private AsyncNetworkRequest(@NonNull NetworkClient networkClient,
-                                @NonNull String url,
-                                @NonNull String method,
-                                @Nullable Map<String, String> headers,
-                                @Nullable String jsonContent,
-                                @NonNull Class<T> expectedResultType) {
+    private AsyncNetworkRequest(NetworkClient networkClient,
+                                String url,
+                                String method,
+                                Map<String, String> headers,
+                                String jsonContent,
+                                Class<T> expectedResultType) {
 
         super(() -> networkClient.request(url, method, headers, jsonContent, expectedResultType));
         id = url;

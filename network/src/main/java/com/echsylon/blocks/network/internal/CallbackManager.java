@@ -2,7 +2,6 @@ package com.echsylon.blocks.network.internal;
 
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
 
 import com.annimon.stream.Stream;
 import com.echsylon.blocks.network.ErrorListener;
@@ -54,7 +53,10 @@ class CallbackManager<T> {
      *
      * @param listener The success callback implementation.
      */
-    void addSuccessListener(@NonNull SuccessListener<T> listener) {
+    void addSuccessListener(SuccessListener<T> listener) {
+        if (listener == null)
+            return;
+
         switch (finishState) {
             case NONE:
                 synchronized (successLock) {
@@ -82,7 +84,10 @@ class CallbackManager<T> {
      * @param listener The error callback implementation.
      */
 
-    void addErrorListener(@NonNull ErrorListener listener) {
+    void addErrorListener(ErrorListener listener) {
+        if (listener == null)
+            return;
+
         switch (finishState) {
             case NONE:
                 synchronized (errorLock) {
@@ -108,7 +113,10 @@ class CallbackManager<T> {
      *
      * @param listener The finish callback implementation.
      */
-    void addFinishListener(@NonNull FinishListener listener) {
+    void addFinishListener(FinishListener listener) {
+        if (listener == null)
+            return;
+
         switch (finishState) {
             case NONE:
                 synchronized (finishLock) {
@@ -201,8 +209,11 @@ class CallbackManager<T> {
      * @param listener The success callback implementation to re-deliver to.
      */
     @SuppressWarnings("unchecked") // Prevent Lint type cast warning
-    private void deliverSuccessOnMainThread(@NonNull SuccessListener<T> listener) {
-        new Handler(Looper.getMainLooper()).post(() -> listener.onSuccess((T) result));
+    private void deliverSuccessOnMainThread(SuccessListener<T> listener) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (listener != null)
+                listener.onSuccess((T) result);
+        });
     }
 
     /**
@@ -211,8 +222,11 @@ class CallbackManager<T> {
      *
      * @param listener The error callback implementation to re-deliver to.
      */
-    private void deliverErrorOnMainThread(@NonNull ErrorListener listener) {
-        new Handler(Looper.getMainLooper()).post(() -> listener.onError((Throwable) result));
+    private void deliverErrorOnMainThread(ErrorListener listener) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (listener != null)
+                listener.onError((Throwable) result);
+        });
     }
 
     /**
@@ -221,7 +235,11 @@ class CallbackManager<T> {
      *
      * @param listener The finish callback implementation to notify again.
      */
-    private void notifyFinishOnMainThread(@NonNull FinishListener listener) {
-        new Handler(Looper.getMainLooper()).post(listener::onFinish);
+    private void notifyFinishOnMainThread(FinishListener listener) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (listener != null)
+                listener.onFinish();
+        });
     }
+
 }
