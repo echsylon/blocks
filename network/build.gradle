@@ -31,8 +31,11 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            testCoverageEnabled true
         }
     }
     compileOptions {
@@ -52,6 +55,6 @@ dependencies {
 apply from: 'aar.gradle'
 apply from: 'jar.gradle'
 apply from: 'jacoco.gradle'
-apply from: 'coveralls.gradle'
 apply from: 'publish.gradle'
 apply from: 'bintray.gradle'
+apply from: 'coveralls.gradle'
