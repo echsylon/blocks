@@ -3,7 +3,7 @@ apply plugin: 'com.jfrog.bintray'
 bintray {
     user = System.getenv('BLOCKS_NETWORK_BINTRAY_USER')
     key = System.getenv('BLOCKS_NETWORK_BINTRAY_KEY')
-    publications = ['blocks']
+    publications = ['blocks-network']
     publish = true
 
     pkg {
