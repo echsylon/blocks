@@ -3,7 +3,9 @@ apply plugin: 'com.github.kt3k.coveralls'
 coveralls {
     jacocoReportPath = "${buildDir}/reports/coverage/jacoco/jacoco.xml"
 }
+
 tasks.coveralls {
     dependsOn ':network:jacoco'
     onlyIf { System.env.'CIRCLECI' }
 }
+

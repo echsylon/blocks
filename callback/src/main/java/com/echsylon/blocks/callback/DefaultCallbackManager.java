@@ -1,41 +1,43 @@
-package com.echsylon.blocks.network.internal;
+package com.echsylon.blocks.callback;
 
 import android.os.Handler;
 import android.os.Looper;
 
 import com.annimon.stream.Stream;
-import com.echsylon.blocks.network.ErrorListener;
-import com.echsylon.blocks.network.FinishListener;
-import com.echsylon.blocks.network.SuccessListener;
 
 import java.util.ArrayList;
 
 /**
- * This class is responsible for temporarily caching a reference, and delivering a result to any
- * given callback implementations. This class has no knowledge, what so ever, of how to produce a
- * result nor of the implementation specific details of the result or error objects.
+ * This class is responsible for temporarily holding references to callback
+ * implementations for a request. Once a result (success or error) is produced
+ * for the request each corresponding callback is called accordingly.
  * <p>
- * This implementation will hold hard references to the attached callback implementations until the
- * result is delivered, at which point the references are released. No duplicate references are kept
- * to any callback.
+ * This class has no knowledge, what so ever, of how to produce a result, nor
+ * does it know of the implementation specific details of the result or error
+ * objects.
  * <p>
- * Adding additional listeners <em>after</em> a result has been delivered will cause the listener to
- * be called immediately if applicable, without being cached. If, for example, adding a success
- * listener after an error result has been produced, then nothing can happen - the listener will
- * neither be cached nor called.
+ * This implementation will hold hard references to the attached callback
+ * implementations until the result is delivered, at which point the references
+ * are released. No duplicate references are kept to any callback.
+ * <p>
+ * Adding additional listeners <em>after</em> a result has been delivered will
+ * cause the listener to be called immediately if applicable, without being
+ * cached. If, for example, adding a success listener after an error result has
+ * been produced, then nothing can happen - the listener will neither be cached
+ * nor called.
  *
- * @param <T> The type of result any added success listeners can handle.
+ * @param <V> The type of result any added success listeners can handle.
  */
-class CallbackManager<T> {
+public class DefaultCallbackManager<V> implements CallbackManager<V> {
     private enum FinishState {
-        SUCCESS, ERROR, NONE
+        SUCCESS, ERROR, TERMINATED, NONE
     }
 
     private final Object successLock = new Object();
     private final Object errorLock = new Object();
     private final Object finishLock = new Object();
 
-    private ArrayList<SuccessListener<T>> successListeners = new ArrayList<>();
+    private ArrayList<SuccessListener<V>> successListeners = new ArrayList<>();
     private ArrayList<ErrorListener> errorListeners = new ArrayList<>();
     private ArrayList<FinishListener> finishListeners = new ArrayList<>();
 
@@ -43,21 +45,27 @@ class CallbackManager<T> {
     private Object result = null;
 
     /**
-     * Stores a reference to the given success callback internally until the result is delivered. If
-     * a success result has already been delivered, then the given listener will also be called with
-     * the previously produced result. If no result has been delivered yet and a reference to the
-     * given callback is already being held on to, then nothing happens (no duplicate references are
-     * kept).
+     * Stores a reference to the given success callback internally until the
+     * result is delivered. If a success result has already been delivered, then
+     * the given listener will also be called with the previously produced
+     * result. If no result has been delivered yet and a reference to the given
+     * callback is already being held on to, then nothing happens (no duplicate
+     * references are kept).
      * <p>
      * Each success listener will only be called [0..1] times.
      *
      * @param listener The success callback implementation.
+     * @throws IllegalStateException if the callback manager is terminated.
      */
-    void addSuccessListener(SuccessListener<T> listener) {
+    @Override
+    public void addSuccessListener(SuccessListener<V> listener) {
         if (listener == null)
             return;
 
         switch (finishState) {
+            case TERMINATED:
+                throw new IllegalStateException("This callback manager is terminated" +
+                        " and won't accept any callbacks anymore.");
             case NONE:
                 synchronized (successLock) {
                     if (!successListeners.contains(listener))
@@ -73,22 +81,27 @@ class CallbackManager<T> {
     }
 
     /**
-     * Stores a reference to the given error callback internally until the result is delivered. If
-     * an error result has already been delivered, then the given listener will also be called with
-     * the previously produced error. If no result has been delivered yet and a reference to the
-     * given callback is already being held on to, then nothing happens (no duplicate references are
-     * kept).
+     * Stores a reference to the given error callback internally until the
+     * result is delivered. If an error result has already been delivered, then
+     * the given listener will also be called with the previously produced
+     * error. If no result has been delivered yet and a reference to the given
+     * callback is already being held on to, then nothing happens (no duplicate
+     * references are kept).
      * <p>
      * Each error listener will only be called [0-1] times.
      *
      * @param listener The error callback implementation.
+     * @throws IllegalStateException if the callback manager is terminated.
      */
-
-    void addErrorListener(ErrorListener listener) {
+    @Override
+    public void addErrorListener(ErrorListener listener) {
         if (listener == null)
             return;
 
         switch (finishState) {
+            case TERMINATED:
+                throw new IllegalStateException("This callback manager is terminated" +
+                        " and won't accept any callbacks anymore.");
             case NONE:
                 synchronized (errorLock) {
                     if (!errorListeners.contains(listener))
@@ -104,20 +117,27 @@ class CallbackManager<T> {
     }
 
     /**
-     * Stores a reference to the given finish callback internally until the result is delivered. If
-     * a result (success or error) has already been delivered, then the given listener will also be
-     * called immediately. If no result has been delivered yet and a reference to the given callback
-     * is already being held on to, then nothing happens (no duplicate references are kept).
+     * Stores a reference to the given finish callback internally until the
+     * result is delivered. If a result (success or error) has already been
+     * delivered, then the given listener will also be called immediately. If no
+     * result has been delivered yet and a reference to the given callback is
+     * already being held on to, then nothing happens (no duplicate references
+     * are kept).
      * <p>
      * Each finish listener will only be called exactly once.
      *
      * @param listener The finish callback implementation.
+     * @throws IllegalStateException if the callback manager is terminated.
      */
-    void addFinishListener(FinishListener listener) {
+    @Override
+    public void addFinishListener(FinishListener listener) {
         if (listener == null)
             return;
 
         switch (finishState) {
+            case TERMINATED:
+                throw new IllegalStateException("This callback manager is terminated" +
+                        " and won't accept any callbacks anymore.");
             case NONE:
                 synchronized (finishLock) {
                     if (!finishListeners.contains(listener))
@@ -135,13 +155,18 @@ class CallbackManager<T> {
     }
 
     /**
-     * Delivers the given success result object to all attached success listeners and then signals
-     * the finish state to all attached finish listeners. This method will release <em>all</em>
-     * cached callback references once called.
+     * Signals the finish state to all attached finish listeners and then
+     * delivers the given success result object to all attached success
+     * listeners. This method will release <em>all</em> cached callback
+     * references once called.
      *
      * @param result The success result object.
      */
-    void deliverSuccessOnMainThread(T result) {
+    @Override
+    public void deliverSuccessOnMainThread(V result) {
+        if (finishState == FinishState.TERMINATED)
+            return;
+
         this.finishState = FinishState.SUCCESS;
         this.result = result;
 
@@ -169,13 +194,17 @@ class CallbackManager<T> {
     }
 
     /**
-     * Delivers the given error cause to all attached error listeners and then signals the finish
-     * state to all attached finish listeners. This method will release <em>all</em> cached callback
-     * references once called.
+     * Signals the finish state to all attached finish listeners and then
+     * delivers the given error cause to all attached error listeners. This
+     * method will release <em>all</em> cached callback references once called.
      *
      * @param cause The error.
      */
-    void deliverErrorOnMainThread(Throwable cause) {
+    @Override
+    public void deliverErrorOnMainThread(Throwable cause) {
+        if (finishState == FinishState.TERMINATED)
+            return;
+
         this.finishState = FinishState.SUCCESS;
         this.result = cause;
 
@@ -203,22 +232,40 @@ class CallbackManager<T> {
     }
 
     /**
-     * Delivers a previously delivered success result again, but only to the given success listener.
-     * No finish listeners are called at this point.
+     * Releases <em>all</em> references to <em>all</em> callback implementations
+     * from the internal cache and puts this callback manager in a terminated
+     * state where no more callbacks will be accepted.
+     */
+    public void terminate() {
+        finishState = FinishState.TERMINATED;
+        synchronized (finishLock) {
+            finishListeners.clear();
+        }
+        synchronized (errorLock) {
+            errorListeners.clear();
+        }
+        synchronized (finishLock) {
+            finishListeners.clear();
+        }
+    }
+
+    /**
+     * Delivers a previously delivered success result again, but only to the
+     * given success listener. No finish listeners are called at this point.
      *
      * @param listener The success callback implementation to re-deliver to.
      */
     @SuppressWarnings("unchecked") // Prevent Lint type cast warning
-    private void deliverSuccessOnMainThread(SuccessListener<T> listener) {
+    private void deliverSuccessOnMainThread(SuccessListener<V> listener) {
         new Handler(Looper.getMainLooper()).post(() -> {
             if (listener != null)
-                listener.onSuccess((T) result);
+                listener.onSuccess((V) result);
         });
     }
 
     /**
-     * Delivers a previously delivered error result again, but only to the given error listener. No
-     * finish listeners are called at this point.
+     * Delivers a previously delivered error result again, but only to the given
+     * error listener. No finish listeners are called at this point.
      *
      * @param listener The error callback implementation to re-deliver to.
      */
@@ -230,8 +277,8 @@ class CallbackManager<T> {
     }
 
     /**
-     * Notifies the given finish listener about a already occurred finish state. No other success or
-     * error listeners are called at this point.
+     * Notifies the given finish listener about a already occurred finish state.
+     * No other success or error listeners are called at this point.
      *
      * @param listener The finish callback implementation to notify again.
      */

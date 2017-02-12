@@ -12,7 +12,6 @@ retrolambda {
     bytecodeVersion 51
 }
 
-// Android configuration
 android {
     compileSdkVersion 25
     buildToolsVersion '25.0.2'
@@ -23,7 +22,7 @@ android {
         targetSdkVersion 25
         versionCode prepareVersionCode()
         versionName prepareVersionName()
-        project.archivesBaseName = 'network'
+        project.archivesBaseName = 'callback'
         project.version = android.defaultConfig.versionName
     }
     buildTypes {
@@ -42,11 +41,7 @@ android {
 }
 
 dependencies {
-    compile project(':callback')
-    compile 'com.squareup.okhttp3:okhttp:3.5.0'
-    compile 'com.google.code.gson:gson:2.8.0'
     compile 'com.annimon:stream:1.1.1'
-
     testCompile 'junit:junit:4.12'
 }
 

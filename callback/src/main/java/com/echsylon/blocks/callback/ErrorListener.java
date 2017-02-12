@@ -1,4 +1,4 @@
-package com.echsylon.blocks.network;
+package com.echsylon.blocks.callback;
 
 /**
  * This interface describes the asynchronous error listener callback.

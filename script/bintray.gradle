@@ -1,20 +1,19 @@
 apply plugin: 'com.jfrog.bintray'
 
 bintray {
-    user = System.getenv('BLOCKS_NETWORK_BINTRAY_USER')
-    key = System.getenv('BLOCKS_NETWORK_BINTRAY_KEY')
-    publications = ['network']
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+    publications = ['blocks']
     publish = true
 
     pkg {
         repo = 'maven'
-        name = 'network'
+        name = project.archivesBaseName
         licenses = ['Apache-2.0']
         websiteUrl = 'https://github.com/echsylon/blocks/wiki'
         issueTrackerUrl = 'https://github.com/echsylon/blocks/issues'
         vcsUrl = 'git@github.com:echsylon/blocks.git'
         githubRepo = 'echsylon/blocks'
-        githubReleaseNotesFile = 'README.md'
 
         version {
             name = android.defaultConfig.versionName
@@ -23,3 +22,4 @@ bintray {
         }
     }
 }
+
