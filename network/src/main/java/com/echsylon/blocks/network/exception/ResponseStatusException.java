@@ -1,34 +1,35 @@
 package com.echsylon.blocks.network.exception;
 
 /**
- * This class is responsible for delivering a request status related runtime exception.
+ * This class is responsible for delivering a request status related runtime
+ * exception.
  */
-public class RequestException extends RuntimeException {
+public class ResponseStatusException extends RuntimeException {
     public final int statusCode;
 
-    public RequestException(int statusCode) {
+    public ResponseStatusException(int statusCode) {
         super();
         this.statusCode = statusCode;
     }
 
-    public RequestException(int statusCode, String message) {
+    public ResponseStatusException(int statusCode, String message) {
         super(message);
         this.statusCode = statusCode;
     }
 
-    public RequestException(int statusCode, Throwable casue) {
+    public ResponseStatusException(int statusCode, Throwable casue) {
         super(casue);
         this.statusCode = statusCode;
     }
 
-    public RequestException(int statusCode, String message, Throwable cause) {
+    public ResponseStatusException(int statusCode, String message, Throwable cause) {
         super(message, cause);
         this.statusCode = statusCode;
     }
 
     /**
-     * Tells whether this exception is due to a client side error. This typically maps to an HTTP
-     * status code in the range [400..499].
+     * Tells whether this exception is due to a client side error. This
+     * typically maps to an HTTP status code in the range [400..499].
      *
      * @return Boolean true if this exception is caused by a client side error.
      */
@@ -37,8 +38,8 @@ public class RequestException extends RuntimeException {
     }
 
     /**
-     * Tells whether this exception is due to a server side error. This typically maps to an HTTP
-     * status code in the range [500..599].
+     * Tells whether this exception is due to a server side error. This
+     * typically maps to an HTTP status code in the range [500..599].
      *
      * @return Boolean true if this exception is caused by a server side error.
      */
