@@ -25,17 +25,15 @@ public interface NetworkClient {
     /**
      * Performs a synchronous network request.
      *
-     * @param url                The target URL of the request.
-     * @param method             The HTTP method.
-     * @param headers            Any optional key/value header pairs. May be
-     *                           null.
-     * @param payload            Any optional data to send. May be null.
-     * @param expectedResultType The Java class implementation of the expected
-     *                           result DTO.
-     * @param <T>                The type of expected result.
-     * @return A Java class object, of the defined type, which describes the
-     * response body DTO.
+     * @param url     The target URL of the request.
+     * @param method  The HTTP method.
+     * @param headers Any optional key/value header pairs. May be null.
+     * @param payload Any optional data to send. May be null.
+     * @return The server response as a byte array.
      */
-    <T> T execute(String url, String method, List<Header> headers, byte[] payload, Class<T> expectedResultType);
+    byte[] execute(String url,
+                   String method,
+                   List<Header> headers,
+                   byte[] payload);
 
 }

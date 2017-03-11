@@ -3,8 +3,6 @@ package com.echsylon.blocks.network;
 import com.annimon.stream.Stream;
 import com.echsylon.blocks.network.exception.NoConnectionException;
 import com.echsylon.blocks.network.exception.ResponseStatusException;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +28,7 @@ import static com.echsylon.blocks.network.Utils.info;
  * domain objects parsed from the returned JSON content.
  */
 @SuppressWarnings("WeakerAccess")
-public class JsonNetworkClient implements NetworkClient {
+public class DefaultNetworkClient implements NetworkClient {
 
     /**
      * This class allows the caller to configure the network client behavior.
@@ -97,18 +95,18 @@ public class JsonNetworkClient implements NetworkClient {
 
 
     /**
-     * Initializes the internal runtime state of the {@code JsonNetworkClient}
-     * objects with default settings.
+     * Initializes the runtime state of the {@code DefaultNetworkClient} objects
+     * with default settings.
      *
-     * @see JsonNetworkClient.SettingsFactory for defaults.
+     * @see SettingsFactory for defaults.
      */
     public static void initialize() {
         initialize(new SettingsFactory());
     }
 
     /**
-     * Initializes the internal runtime state of the {@code JsonNetworkClient}
-     * objects with custom settings.
+     * Initializes the runtime state of the {@code DefaultNetworkClient} objects
+     * with custom settings.
      *
      * @param settings The custom settings.
      */
@@ -128,7 +126,7 @@ public class JsonNetworkClient implements NetworkClient {
     }
 
     /**
-     * Forces the JsonNetworkClient to aggressively release its internal
+     * Forces the DefaultNetworkClient to aggressively release its internal
      * resources and reset it's state.
      */
     public static void shutdownNow() {
@@ -154,45 +152,6 @@ public class JsonNetworkClient implements NetworkClient {
 
 
     private static OkHttpClient okHttpClient;
-    private final JsonParser jsonParser;
-
-    /**
-     * Creates a new instance of this class with a default JSON parser.
-     */
-    public JsonNetworkClient() {
-        this(null);
-    }
-
-    /**
-     * Creates a new instance of this class with a specific JSON parser
-     * implementation.
-     *
-     * @param jsonParser The JSON parser this http client should use when
-     *                   parsing any returned response into Java objects.
-     */
-    public JsonNetworkClient(final JsonParser jsonParser) {
-        this.jsonParser = jsonParser != null ?
-                jsonParser :
-                new JsonParser() {
-                    @Override
-                    public <T> T fromJson(String json, Class<T> expectedResultType) throws IllegalArgumentException {
-                        try {
-                            return new Gson().fromJson(json, expectedResultType);
-                        } catch (JsonSyntaxException e) {
-                            throw new IllegalArgumentException("Couldn't parse json: " + json, e);
-                        }
-                    }
-
-                    @Override
-                    public String toJson(Object object) throws IllegalArgumentException {
-                        try {
-                            return new Gson().toJson(object);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException("Couldn't serialize object", e);
-                        }
-                    }
-                };
-    }
 
     /**
      * Synchronously performs an HTTP request and tries to parse the response
@@ -200,17 +159,11 @@ public class JsonNetworkClient implements NetworkClient {
      * wrong or if any preconditions aren't honored, then an exception will be
      * thrown.
      *
-     * @param url                The URL to terminate in.
-     * @param method             The request method.
-     * @param headers            Any optional key/value header pairs.
-     * @param payload            Any optional data to send through the request.
-     *                           The data will be sent as a JSON string. This
-     *                           method will fail with an exception if the
-     *                           object can't be represented in JSON notation.
-     * @param expectedResultType The class implementation to parse the given
-     *                           JSON into.
-     * @param <T>                The type of the expected answer.
-     * @return An object holding the requested data.
+     * @param url     The URL to terminate in.
+     * @param method  The request method.
+     * @param headers Any optional key/value header pairs.
+     * @param payload Any optional data to send through the request.
+     * @return The server response body.
      * @throws ResponseStatusException If the response returned an unsuccessful
      *                                 (4xx or 5xx) status code.
      * @throws NoConnectionException   If a connection to the given URL couldn't
@@ -219,7 +172,16 @@ public class JsonNetworkClient implements NetworkClient {
      *                                 would occur.
      */
     @Override
-    public <T> T execute(String url, String method, List<Header> headers, byte[] payload, Class<T> expectedResultType) {
+    public byte[] execute(String url,
+                          String method,
+                          List<Header> headers,
+                          byte[] payload) {
+
+        if (okHttpClient == null) {
+            info("Initializing default http client");
+            initialize();
+        }
+
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
         requestBuilder.method(method, new JsonRequestBody(payload));
@@ -232,7 +194,7 @@ public class JsonNetworkClient implements NetworkClient {
             Response response = call.execute();
 
             if (response.isSuccessful())
-                return jsonParser.fromJson(response.body().string(), expectedResultType);
+                response.body().bytes();
 
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {

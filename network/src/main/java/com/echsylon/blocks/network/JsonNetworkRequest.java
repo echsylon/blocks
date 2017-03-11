@@ -15,9 +15,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 
 /**
- * This is a default network {@link Request} implementation. This class will
- * hold a hard reference to any attached listeners until a result is produced,
- * at which point all listener references are released.
+ * This is a JSON {@link Request} implementation. It knows how to produce JSON
+ * from any given given payload (and deliver it in JSON form) and it will also
+ * make an attempt to convert any server response body to a corresponding Java
+ * object of choice. If the server isn't responding with JSON this request will
+ * fail miserably and call any attached error callbacks.
+ * <p>
+ * This implementation will hold a hard reference to any attached callbacks
+ * until a result is produced, at which point all listener references are
+ * released.
  *
  * @param <T> The type of expected result object. The caller can use {@link
  *            Void} when expecting intentionally empty results.
@@ -25,6 +31,7 @@ import java.util.concurrent.FutureTask;
 @SuppressWarnings("WeakerAccess")
 public final class JsonNetworkRequest<T> extends FutureTask<T> implements Request<T> {
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5);
+    private static final Object LAST_REQUEST_LOCK = new Object();
     private static JsonNetworkRequest lastRequest;
 
     /**
@@ -37,8 +44,8 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
      * @param url                The target URL.
      * @param method             The request method.
      * @param headers            Any optional key/value headers.
-     * @param jsonPayload        Any optional json to send along with the
-     *                           request.
+     * @param payload            Any optional payload to send along with the
+     *                           request. Will be serialized as JSON.
      * @param expectedResultType The Java class implementation of the expected
      *                           result.
      * @param <V>                The result type declaration.
@@ -48,18 +55,33 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
                                                     final String url,
                                                     final String method,
                                                     final List<NetworkClient.Header> headers,
-                                                    final String jsonPayload,
+                                                    final Object payload,
                                                     final Class<V> expectedResultType) {
 
-        if (lastRequest != null && lastRequest.tag != null && lastRequest.tag.equals(url)) {
-            byte[] payload = jsonPayload != null ? jsonPayload.getBytes() : null;
-            Callable<V> callable = () -> networkClient.execute(url, method, headers, payload, expectedResultType);
-            lastRequest = new JsonNetworkRequest<>(url, callable);
-            EXECUTOR.submit(lastRequest);
-        }
+        // This code is expected to be run on the main thread. We need to
+        // ensure that none of our worker threads interfere with the main
+        // thread when operating on the shared "lastRequest" object.
+        synchronized (LAST_REQUEST_LOCK) {
+            if (lastRequest != null && lastRequest.tag != null && lastRequest.tag.equals(url)) {
+                Callable<V> callable = () -> {
+                    JsonParser jsonParser = new DefaultJsonParser();
+                    byte[] payloadBytes = payload != null ?
+                            jsonParser.toJson(payload).getBytes() :
+                            null;
 
-        //noinspection unchecked
-        return lastRequest;
+                    byte[] responseBytes = networkClient.execute(url, method, headers, payloadBytes);
+                    String responseJson = new String(responseBytes);
+
+                    return jsonParser.fromJson(responseJson, expectedResultType);
+                };
+
+                lastRequest = new JsonNetworkRequest<>(url, callable);
+                EXECUTOR.submit(lastRequest);
+            }
+
+            //noinspection unchecked
+            return lastRequest;
+        }
     }
 
     private final CallbackManager<T> callbackManager;
@@ -86,8 +108,15 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
     protected void done() {
         super.done();
 
-        if (this == lastRequest)
-            lastRequest = null;
+        // This method is executed on one of our worker threads. We need to
+        // ensure that none of the worker threads interfere with each other
+        // on this single shared "lastRequest" object. Be very, very careful
+        // how long the LAST_REQUEST_LOCK is being held on to as it may block
+        // the main thread (big NO-NO on Android).
+        synchronized (LAST_REQUEST_LOCK) {
+            if (this == lastRequest)
+                lastRequest = null;
+        }
 
         try {
             callbackManager.deliverSuccessOnMainThread(get());
