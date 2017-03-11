@@ -30,8 +30,11 @@ import static com.echsylon.blocks.network.Utils.info;
  */
 @SuppressWarnings("WeakerAccess")
 public class JsonNetworkClient implements NetworkClient {
+
     /**
      * This class allows the caller to configure the network client behavior.
+     * Any custom implementations are encouraged to override members of this
+     * default implementation.
      */
     public static class SettingsFactory {
         /**
@@ -91,17 +94,20 @@ public class JsonNetworkClient implements NetworkClient {
         }
     }
 
+
     /**
-     * Initializes the internal state of the JsonNetworkClient with default
-     * settings.
+     * Initializes the internal runtime state of the {@code JsonNetworkClient}
+     * objects with default settings.
+     *
+     * @see JsonNetworkClient.SettingsFactory for defaults.
      */
     public static void initialize() {
         initialize(new SettingsFactory());
     }
 
     /**
-     * Initializes the internal state of the JsonNetworkClient with custom
-     * settings.
+     * Initializes the internal runtime state of the {@code JsonNetworkClient}
+     * objects with custom settings.
      *
      * @param settings The custom settings.
      */
@@ -122,16 +128,15 @@ public class JsonNetworkClient implements NetworkClient {
 
     /**
      * Forces the JsonNetworkClient to aggressively release its internal
-     * resource handles and reset it's state.
+     * resources and reset it's state.
      */
     public static void shutdownNow() {
         if (okHttpClient != null) {
             Dispatcher dispatcher = okHttpClient.dispatcher();
             if (dispatcher != null) {
                 ExecutorService executorService = dispatcher.executorService();
-                if (executorService != null) {
+                if (executorService != null)
                     executorService.shutdownNow();
-                }
             }
 
             ConnectionPool connectionPool = okHttpClient.connectionPool();
@@ -150,10 +155,20 @@ public class JsonNetworkClient implements NetworkClient {
     private static OkHttpClient okHttpClient;
     private final JsonParser jsonParser;
 
+    /**
+     * Creates a new instance of this class with a default JSON parser.
+     */
     public JsonNetworkClient() {
         this(null);
     }
 
+    /**
+     * Creates a new instance of this class with a specific JSON parser
+     * implementation.
+     *
+     * @param jsonParser The JSON parser this http client should use when
+     *                   parsing any returned response into Java objects.
+     */
     public JsonNetworkClient(final JsonParser jsonParser) {
         this.jsonParser = jsonParser != null ?
                 jsonParser :
