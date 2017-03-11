@@ -21,12 +21,11 @@ public interface JsonParser {
      * Tries to create a corresponding JSON string from the accessible fields in
      * a Java object.
      *
-     * @param raw              The object to parse into an alternate form.
-     * @param expectedJsonType The type describing the desired output.
-     * @return The Json representation of the given raw data object.
+     * @param object The object to serialize into a JSON string.
+     * @return The Json representation of the given data object.
      * @throws IllegalArgumentException If the given object can't be represented
      *                                  as a JSON string for any reason.
      */
-    <T> String toJson(T raw, Class<T> expectedJsonType) throws IllegalArgumentException;
+    String toJson(Object object) throws IllegalArgumentException;
 
 }

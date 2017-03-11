@@ -4,6 +4,7 @@ import com.annimon.stream.Stream;
 import com.echsylon.blocks.network.exception.NoConnectionException;
 import com.echsylon.blocks.network.exception.ResponseStatusException;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 
 import java.io.File;
 import java.io.IOException;
@@ -175,12 +176,20 @@ public class JsonNetworkClient implements NetworkClient {
                 new JsonParser() {
                     @Override
                     public <T> T fromJson(String json, Class<T> expectedResultType) throws IllegalArgumentException {
-                        return new Gson().fromJson(json, expectedResultType);
+                        try {
+                            return new Gson().fromJson(json, expectedResultType);
+                        } catch (JsonSyntaxException e) {
+                            throw new IllegalArgumentException("Couldn't parse json: " + json, e);
+                        }
                     }
 
                     @Override
-                    public <T> String toJson(T raw, Class<T> expectedJsonType) throws IllegalArgumentException {
-                        return new Gson().toJson(raw, expectedJsonType);
+                    public String toJson(Object object) throws IllegalArgumentException {
+                        try {
+                            return new Gson().toJson(object);
+                        } catch (Exception e) {
+                            throw new IllegalArgumentException("Couldn't serialize object", e);
+                        }
                     }
                 };
     }
