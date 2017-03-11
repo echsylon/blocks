@@ -59,7 +59,7 @@ android.libraryVariants.all { variant ->
         }.collect {
             it.isDirectory() ? it : zipTree(it)
         }
-        // Add Atlantis classes
+        // Add library classes
         from("${buildDir}/intermediates/transforms/retrolambda/release/folders/1/1/retrolambda") {
             exclude '**/BuildConfig.class'
             exclude '**/R$*.class'

@@ -94,7 +94,6 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
      * @param callable The actual job content of this network request.
      */
     private JsonNetworkRequest(final String tag, final Callable<T> callable) {
-
         super(callable);
         this.tag = tag;
         this.callbackManager = new DefaultCallbackManager<>();

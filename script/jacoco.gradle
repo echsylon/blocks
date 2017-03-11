@@ -8,7 +8,7 @@ android {
     testOptions {
         unitTests.all {
             jacoco {
-//                includeNoLocationClasses = true
+                includeNoLocationClasses = true
             }
         }
     }

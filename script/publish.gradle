@@ -2,9 +2,9 @@ apply plugin: 'maven-publish'
 
 publishing {
     publications {
-        blocks(MavenPublication) {
+        library(MavenPublication) {
             groupId = 'com.echsylon.blocks'
-            artifactId = project.archivesBaseName
+            artifactId = 'network'
             version = android.defaultConfig.versionName
 
             // The publication doesn't know about our dependencies for the Android gradle plugin,
@@ -22,7 +22,7 @@ publishing {
                 }
             }
 
-            def fileName = "${project.archivesBaseName}-${version}".toLowerCase()
+            def fileName = "${archivesBaseName}-${version}"
 
             // Source code bundle from task defined in 'archive.gradle'
             artifact("${buildDir}/outputs/jar/release/${fileName}-source.jar") {

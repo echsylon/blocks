@@ -1,1 +1,1 @@
-include ':sample', ':network', ':callback'
+include ':library'

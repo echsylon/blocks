@@ -5,7 +5,7 @@ coveralls {
 }
 
 tasks.coveralls {
-    dependsOn ':network:jacoco'
+    dependsOn ':library:jacoco'
     onlyIf { System.env.'CIRCLECI' }
 }
 
