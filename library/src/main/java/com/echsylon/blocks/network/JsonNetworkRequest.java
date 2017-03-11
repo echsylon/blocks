@@ -1,6 +1,5 @@
 package com.echsylon.blocks.network;
 
-import com.echsylon.blocks.callback.CallbackManager;
 import com.echsylon.blocks.callback.DefaultCallbackManager;
 import com.echsylon.blocks.callback.ErrorListener;
 import com.echsylon.blocks.callback.FinishListener;
@@ -84,7 +83,7 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
         }
     }
 
-    private final CallbackManager<T> callbackManager;
+    private final DefaultCallbackManager<T> callbackManager;
     private final String tag;
 
     /**
@@ -164,6 +163,14 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
     public Request<T> withFinishListener(FinishListener listener) {
         callbackManager.addFinishListener(listener);
         return this;
+    }
+
+    /**
+     * Removes all previously added listeners without calling through to any of
+     * them.
+     */
+    public void terminate() {
+        callbackManager.terminate();
     }
 
 }
