@@ -1,2 +1,2 @@
-# blocks
-This is a set of Android application building blocks
+[![CircleCI](https://circleci.com/gh/echsylon/blocks-network.svg?style=shield)](https://circleci.com/gh/echsylon/blocks-network) [![Coverage Status](https://coveralls.io/repos/github/echsylon/blocks-network/badge.svg)](https://coveralls.io/github/echsylon/blocks-network) [![Download](https://api.bintray.com/packages/echsylon/maven/network/images/download.svg)](https://bintray.com/echsylon/maven/network/_latestVersion)
+# blocks-network
