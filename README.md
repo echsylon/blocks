@@ -68,6 +68,7 @@ public class Product {
                 "GET",
                 null, // headers
                 null, // payload
+                new DefaultJsonParser(),
                 Product.DTO.class);
     }
 }
