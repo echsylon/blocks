@@ -45,6 +45,8 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
      * @param headers            Any optional key/value headers.
      * @param payload            Any optional payload to send along with the
      *                           request. Will be serialized as JSON.
+     * @param jsonParser         The JSON parser implementation to use when
+     *                           producing the final result of the request.
      * @param expectedResultType The Java class implementation of the expected
      *                           result.
      * @param <V>                The result type declaration.
@@ -55,7 +57,15 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
                                                     final String method,
                                                     final List<NetworkClient.Header> headers,
                                                     final Object payload,
+                                                    final JsonParser jsonParser,
                                                     final Class<V> expectedResultType) {
+
+        // Don't even try if the required tools aren't provided.
+        if (networkClient == null)
+            throw new IllegalArgumentException("The NetworkClient mustn't be null");
+
+        if (jsonParser == null)
+            throw new IllegalArgumentException("The JsonParser mustn't be null");
 
         // This code is expected to be run on the main thread. We need to
         // ensure that none of our worker threads interfere with the main
@@ -63,7 +73,6 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
         synchronized (LAST_REQUEST_LOCK) {
             if (lastRequest != null && lastRequest.tag != null && lastRequest.tag.equals(url)) {
                 Callable<V> callable = () -> {
-                    JsonParser jsonParser = new DefaultJsonParser();
                     byte[] payloadBytes = payload != null ?
                             jsonParser.toJson(payload).getBytes() :
                             null;
