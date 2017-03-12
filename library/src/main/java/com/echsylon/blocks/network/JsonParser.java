@@ -11,6 +11,7 @@ public interface JsonParser {
      *
      * @param json               The raw json to parse.
      * @param expectedResultType The class definition of the resulting object.
+     * @param <T>                The type of the result class instance.
      * @return An instance of the expected result class, populated with
      * corresponding data from the raw data object.
      * @throws IllegalArgumentException If the parsing fails for any reason.

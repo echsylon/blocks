@@ -45,7 +45,7 @@ public class DefaultNetworkClient implements NetworkClient {
         }
 
         /**
-         * @return Boolean true if HTTPS <-> HTTP redirects should be followed.
+         * @return Boolean true if HTTPS to HTTP redirects should be followed.
          * Defaults to true.
          */
         public boolean followSslRedirects() {
