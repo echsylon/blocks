@@ -71,7 +71,7 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
         // ensure that none of our worker threads interfere with the main
         // thread when operating on the shared "lastRequest" object.
         synchronized (LAST_REQUEST_LOCK) {
-            if (lastRequest != null && lastRequest.tag != null && lastRequest.tag.equals(url)) {
+            if (lastRequest == null || (lastRequest.tag != null && !lastRequest.tag.equals(url))) {
                 Callable<V> callable = () -> {
                     byte[] payloadBytes = payload != null ?
                             jsonParser.toJson(payload).getBytes() :
