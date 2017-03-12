@@ -180,7 +180,10 @@ public class DefaultNetworkClient implements NetworkClient {
 
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
-        requestBuilder.method(method, new JsonRequestBody(payload));
+        requestBuilder.method(method, payload != null ?
+                new JsonRequestBody(payload) :
+                null);
+
         Stream.of(headers)
                 .forEach(header -> requestBuilder.addHeader(header.key, header.value));
 
