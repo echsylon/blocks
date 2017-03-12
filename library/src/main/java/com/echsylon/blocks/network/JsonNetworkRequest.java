@@ -34,8 +34,8 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
     private static JsonNetworkRequest lastRequest;
 
     /**
-     * This class will prepare a suitable request object for the given
-     * parameters. If the target URL is the same as the last still pending
+     * This class will prepare and enqueue a suitable request object for the
+     * given parameters. If the target URL is the same as the last still pending
      * request url, then that request object will be returned in order to
      * prevent unnecessary duplicate requests to the server.
      *
@@ -50,7 +50,7 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
      * @param <V>                The result type declaration.
      * @return A request object to attach any callback implementations to.
      */
-    public static <V> JsonNetworkRequest<V> prepare(final NetworkClient networkClient,
+    public static <V> JsonNetworkRequest<V> enqueue(final NetworkClient networkClient,
                                                     final String url,
                                                     final String method,
                                                     final List<NetworkClient.Header> headers,
