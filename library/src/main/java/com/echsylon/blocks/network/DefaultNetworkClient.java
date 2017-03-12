@@ -35,7 +35,7 @@ public class DefaultNetworkClient implements NetworkClient {
      * Any custom implementations are encouraged to override members of this
      * default implementation.
      */
-    public static class SettingsFactory {
+    public static class Settings {
         /**
          * @return Boolean true if redirects should be followed. Defaults to
          * true.
@@ -93,24 +93,48 @@ public class DefaultNetworkClient implements NetworkClient {
         }
     }
 
-
     /**
-     * Initializes the runtime state of the {@code DefaultNetworkClient} objects
-     * with default settings.
+     * Initializes the runtime state of the single {@code DefaultNetworkClient}
+     * object with the supplied settings. Any previously created instance is
+     * forcefully shut down and replaced with this new instance.
      *
-     * @see SettingsFactory for defaults.
+     * @param settings The custom settings to initialize the new instance with.
+     * @return The singleton instance of this class. Never null.
      */
-    public static void initialize() {
-        initialize(new SettingsFactory());
+    public static DefaultNetworkClient createNewInstance(final Settings settings) {
+        if (instance != null) {
+            instance.shutdownNow();
+            instance = null;
+        }
+
+        instance = new DefaultNetworkClient(settings == null ?
+                new Settings() :
+                settings);
+
+        return instance;
     }
 
     /**
-     * Initializes the runtime state of the {@code DefaultNetworkClient} objects
-     * with custom settings.
+     * Ensures there is a singleton instance of this class and returns it.
      *
-     * @param settings The custom settings.
+     * @return The singleton instance of this class. Never null.
      */
-    public static void initialize(final SettingsFactory settings) {
+    public static DefaultNetworkClient getInstance() {
+        return instance == null ?
+                createNewInstance(null) :
+                instance;
+    }
+
+
+    private static DefaultNetworkClient instance;
+    private OkHttpClient okHttpClient;
+
+    /**
+     * Intentionally hidden constructor
+     */
+    private DefaultNetworkClient(Settings settings) {
+        // If done properly (shutdown() was called) this should always
+        // be true.
         if (okHttpClient == null) {
             File cacheDir = settings.cacheDirectory();
             Cache cache = cacheDir != null ?
@@ -124,34 +148,6 @@ public class DefaultNetworkClient implements NetworkClient {
                     .build();
         }
     }
-
-    /**
-     * Forces the DefaultNetworkClient to aggressively release its internal
-     * resources and reset it's state.
-     */
-    public static void shutdownNow() {
-        if (okHttpClient != null) {
-            Dispatcher dispatcher = okHttpClient.dispatcher();
-            if (dispatcher != null) {
-                ExecutorService executorService = dispatcher.executorService();
-                if (executorService != null)
-                    executorService.shutdownNow();
-            }
-
-            ConnectionPool connectionPool = okHttpClient.connectionPool();
-            if (connectionPool != null)
-                connectionPool.evictAll();
-
-            Cache cache = okHttpClient.cache();
-            if (cache != null)
-                closeSilently(cache);
-
-            okHttpClient = null;
-        }
-    }
-
-
-    private static OkHttpClient okHttpClient;
 
     /**
      * Synchronously performs an HTTP request and tries to parse the response
@@ -168,8 +164,10 @@ public class DefaultNetworkClient implements NetworkClient {
      *                                 (4xx or 5xx) status code.
      * @throws NoConnectionException   If a connection to the given URL couldn't
      *                                 be established
-     * @throws RuntimeException        If any other unexpected runtime error
-     *                                 would occur.
+     * @throws IllegalStateException   If execute() is called after shutdown()
+     *                                 has been called.
+     * @throws RuntimeException        If any other unexpected runtime error has
+     *                                 occurred.
      */
     @Override
     public byte[] execute(String url,
@@ -177,10 +175,8 @@ public class DefaultNetworkClient implements NetworkClient {
                           List<Header> headers,
                           byte[] payload) {
 
-        if (okHttpClient == null) {
-            info("Initializing default http client");
-            initialize();
-        }
+        if (okHttpClient == null)
+            throw new IllegalStateException("Calling execute() after shutdown() was called");
 
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
@@ -203,6 +199,36 @@ public class DefaultNetworkClient implements NetworkClient {
         } catch (IllegalStateException e) {
             info(e, "This request instance has already been executed: %s", url);
             throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Forces the DefaultNetworkClient to aggressively release its internal
+     * resources and reset it's state.
+     * <p>
+     * Any enqueued requests that isn't actively executing yet are removed
+     * from the queue. A best-effort attempt is made to also terminate any
+     * executing requests, but no guarantees can be given that they will
+     * terminate immediately.
+     */
+    public void shutdownNow() {
+        if (okHttpClient != null) {
+            Dispatcher dispatcher = okHttpClient.dispatcher();
+            if (dispatcher != null) {
+                ExecutorService executorService = dispatcher.executorService();
+                if (executorService != null)
+                    executorService.shutdownNow();
+            }
+
+            ConnectionPool connectionPool = okHttpClient.connectionPool();
+            if (connectionPool != null)
+                connectionPool.evictAll();
+
+            Cache cache = okHttpClient.cache();
+            if (cache != null)
+                closeSilently(cache);
+
+            okHttpClient = null;
         }
     }
 
