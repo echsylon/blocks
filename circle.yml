@@ -16,10 +16,10 @@ dependencies:
     - echo y | android update sdk --no-ui --all --filter build-tools-25.0.2
     - echo y | android update sdk --no-ui --all --filter extra-android-m2repository
 
-# Run release tests and publish any results.
+# Run library release tests and archive + publish test results.
 test:
   override:
-    - ./gradlew clean test coveralls
+    - ./gradlew :library:clean :library:testRelease :library:coveralls --stacktrace
   post:
     - mkdir -p $CIRCLE_TEST_REPORTS/junit/release/
     - find . -type f -regex ".*/build/test-results/release/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/release \;
@@ -28,8 +28,8 @@ test:
 # master branch in the repo owned by echsylon (disqualifying any forked repos).
 deployment:
   release:
-    tag: /v[0-9]+(\.[0-9]+)*/
+    tag: /v[0-9]+\.[0-9]+\.[0-9]+/
     owner: echsylon
     commands:
-      - ./gradlew :network:bintrayUpload
+      - ./gradlew :library:clean :library:assembleRelease :library:bintrayUpload
 
