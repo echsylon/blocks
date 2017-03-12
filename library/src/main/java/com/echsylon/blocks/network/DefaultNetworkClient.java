@@ -193,7 +193,7 @@ public class DefaultNetworkClient implements NetworkClient {
             Response response = call.execute();
 
             if (response.isSuccessful())
-                response.body().bytes();
+                return response.body().bytes();
 
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {
