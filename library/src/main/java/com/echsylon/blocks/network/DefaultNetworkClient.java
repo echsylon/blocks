@@ -184,8 +184,9 @@ public class DefaultNetworkClient implements NetworkClient {
                 new JsonRequestBody(payload) :
                 null);
 
-        Stream.of(headers)
-                .forEach(header -> requestBuilder.addHeader(header.key, header.value));
+        if (headers != null)
+            Stream.of(headers)
+                    .forEach(header -> requestBuilder.addHeader(header.key, header.value));
 
         try {
             Request request = requestBuilder.build();
