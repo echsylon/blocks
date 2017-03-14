@@ -8,8 +8,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
+import okhttp3.CacheControl;
 import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
@@ -50,6 +52,24 @@ public class DefaultNetworkClient implements NetworkClient {
          */
         public boolean followSslRedirects() {
             return true;
+        }
+
+        /**
+         * @return Boolean true if cached content should be returned on
+         * connectivity errors. Defaults to false. Note that it's the callers
+         * responsibility to provide proper cache headers to populate the cache
+         * in the first place.
+         */
+        public boolean fallbackToCache() {
+            return false;
+        }
+
+        /**
+         * @return The max-stale seconds accepted when falling back to cache
+         * content. Default to 0.
+         */
+        public int maxFallbackCacheStaleSeconds() {
+            return 0;
         }
 
         /**
@@ -128,25 +148,23 @@ public class DefaultNetworkClient implements NetworkClient {
 
     private static DefaultNetworkClient instance;
     private OkHttpClient okHttpClient;
+    private Settings settings;
 
     /**
      * Intentionally hidden constructor
      */
     private DefaultNetworkClient(Settings settings) {
-        // If done properly (shutdown() was called) this should always
-        // be true.
-        if (okHttpClient == null) {
-            File cacheDir = settings.cacheDirectory();
-            Cache cache = cacheDir != null ?
-                    new Cache(cacheDir, settings.maxCacheSizeBytes()) :
-                    null;
+        File cacheDir = settings.cacheDirectory();
+        Cache cache = cacheDir != null ?
+                new Cache(cacheDir, settings.maxCacheSizeBytes()) :
+                null;
 
-            okHttpClient = new OkHttpClient.Builder()
-                    .followSslRedirects(settings.followSslRedirects())
-                    .followRedirects(settings.followRedirects())
-                    .cache(cache)
-                    .build();
-        }
+        this.settings = settings;
+        this.okHttpClient = new OkHttpClient.Builder()
+                .followSslRedirects(settings.followSslRedirects())
+                .followRedirects(settings.followRedirects())
+                .cache(cache)
+                .build();
     }
 
     /**
@@ -175,6 +193,19 @@ public class DefaultNetworkClient implements NetworkClient {
                           List<Header> headers,
                           byte[] payload) {
 
+        return execute(url, method, headers, payload, false);
+    }
+
+    /**
+     * Same as {@link #execute(String, String, List, byte[])} but with an
+     * additional fallback flag controlling any fallback-to-cache behavior.
+     */
+    private byte[] execute(final String url,
+                           final String method,
+                           final List<Header> headers,
+                           final byte[] payload,
+                           final boolean isFallback) {
+
         if (okHttpClient == null)
             throw new IllegalStateException("Calling execute() after shutdown() was called");
 
@@ -188,6 +219,11 @@ public class DefaultNetworkClient implements NetworkClient {
             Stream.of(headers)
                     .forEach(header -> requestBuilder.addHeader(header.key, header.value));
 
+        if (isFallback)
+            requestBuilder.cacheControl(new CacheControl.Builder()
+                    .maxAge(settings.maxFallbackCacheStaleSeconds(), TimeUnit.SECONDS)
+                    .build());
+
         try {
             Request request = requestBuilder.build();
             Call call = okHttpClient.newCall(request);
@@ -198,7 +234,9 @@ public class DefaultNetworkClient implements NetworkClient {
 
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {
-            info(e, "Couldn't execute request due to some connectivity issues: %s", url);
+            info(e, "Couldn't execute request due to a connectivity error: %s", url);
+            if (!isFallback && settings.fallbackToCache())
+                return execute(url, method, headers, payload, true);
             throw new NoConnectionException(e);
         } catch (IllegalStateException e) {
             info(e, "This request instance has already been executed: %s", url);
