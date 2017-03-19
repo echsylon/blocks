@@ -114,7 +114,7 @@ public class DefaultNetworkClient implements NetworkClient {
          * falling back to cached content. Zero (0) means don't fall back to
          * cache. Defaults to zero.
          */
-        public int maxFallbackCacheStale() {
+        public int maxFallbackStaleDuration() {
             return maxFallbackStaleDuration;
         }
 
