@@ -54,10 +54,7 @@ public class DefaultNetworkClient implements NetworkClient {
          * kinds of redirects.
          */
         public Settings() {
-            this.cacheDirectory = null;
-            this.cacheSizeBytes = 4 * 1024 * 1024; // 4MB
-            this.followRedirects = true;
-            this.followSslRedirects = true;
+            this(null, 0, true, true);
         }
 
         /**
@@ -90,7 +87,7 @@ public class DefaultNetworkClient implements NetworkClient {
 
         /**
          * @return The maximum amount of bytes to use for caching. Ignored if no
-         * cache directory is provided. Defaults to 4MB
+         * cache directory is provided.
          */
         public long maxCacheSizeBytes() {
             return cacheSizeBytes;
