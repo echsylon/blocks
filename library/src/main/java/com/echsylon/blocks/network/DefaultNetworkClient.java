@@ -15,6 +15,7 @@ import okhttp3.CacheControl;
 import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
+import okhttp3.Interceptor;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -38,6 +39,9 @@ public class DefaultNetworkClient implements NetworkClient {
      * default implementation.
      */
     public static class Settings {
+        private int maybeForcedCacheDuration = 0;
+        private int forcedCacheDuration = 0;
+
         /**
          * @return Boolean true if redirects should be followed. Defaults to
          * true.
@@ -56,20 +60,58 @@ public class DefaultNetworkClient implements NetworkClient {
 
         /**
          * @return Boolean true if cached content should be returned on
-         * connectivity errors. Defaults to false. Note that it's the callers
-         * responsibility to provide proper cache headers to populate the cache
-         * in the first place.
+         * connectivity errors. Defaults to false. Note that it's the clients
+         * and servers responsibility to provide proper cache headers to
+         * populate the cache in the first place.
          */
         public boolean fallbackToCache() {
             return false;
         }
 
         /**
-         * @return The max-stale seconds accepted when falling back to cache
-         * content. Default to 0.
+         * @return The max age in seconds of a cache entry to accept when
+         * falling back to cached content.
          */
-        public int maxFallbackCacheStaleSeconds() {
+        public int maxFallbackCacheStale() {
             return 0;
+        }
+
+        /**
+         * Sets the time to force-cache responses that the server doesn't
+         * specify any cache metrics for. Zero (0) means don't cache. Defaults
+         * to zero.
+         *
+         * @param seconds The time to live in seconds.
+         */
+        public void maybeForceCache(int seconds) {
+            maybeForcedCacheDuration = seconds;
+        }
+
+        /**
+         * @return The number of seconds any unconstrained server responses will
+         * currently be cached for.
+         */
+        public int maybeForcedCacheDuration() {
+            return maybeForcedCacheDuration;
+        }
+
+        /**
+         * Sets the time to force-cache server responses for. This method will
+         * override any server provided cache constraints. Zero (0) means don't
+         * cache. Defaults to zero.
+         *
+         * @param seconds The time to live in seconds.
+         */
+        public void forceCache(int seconds) {
+            forcedCacheDuration = seconds;
+        }
+
+        /**
+         * @return The number of seconds any server response will currently be
+         * cached for.
+         */
+        public int forcedCacheSeconds() {
+            return forcedCacheDuration;
         }
 
         /**
@@ -161,6 +203,7 @@ public class DefaultNetworkClient implements NetworkClient {
 
         this.settings = settings;
         this.okHttpClient = new OkHttpClient.Builder()
+                .addNetworkInterceptor(this::maybeOverrideCacheControl)
                 .followSslRedirects(settings.followSslRedirects())
                 .followRedirects(settings.followRedirects())
                 .cache(cache)
@@ -221,7 +264,7 @@ public class DefaultNetworkClient implements NetworkClient {
 
         if (isFallback)
             requestBuilder.cacheControl(new CacheControl.Builder()
-                    .maxAge(settings.maxFallbackCacheStaleSeconds(), TimeUnit.SECONDS)
+                    .maxAge(settings.maxFallbackCacheStale(), TimeUnit.SECONDS)
                     .build());
 
         try {
@@ -272,6 +315,35 @@ public class DefaultNetworkClient implements NetworkClient {
 
             okHttpClient = null;
         }
+    }
+
+    /**
+     * Applies any forced client side cache control settings.
+     *
+     * @param chain The OkHttp request chain.
+     * @return The (maybe) prepared request.
+     * @throws IOException Would something go wrong in the request chain.
+     */
+    private Response maybeOverrideCacheControl(final Interceptor.Chain chain) throws IOException {
+        // Let the original response come through.
+        Response response = chain.proceed(chain.request());
+
+        // Force any hard client side cache settings
+        if (settings.forcedCacheDuration > 0)
+            response = response.newBuilder()
+                    .header("Cache-Control", "max-age=" +
+                            settings.forcedCacheDuration)
+                    .build();
+
+        // Maybe force any client side cache settings
+        if (settings.maybeForcedCacheDuration > 0 &&
+                response.header("Cache-Control") == null)
+            response = response.newBuilder()
+                    .header("Cache-Control", "max-age=" +
+                            settings.maybeForcedCacheDuration)
+                    .build();
+
+        return response;
     }
 
 }
