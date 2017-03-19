@@ -172,18 +172,36 @@ public class DefaultNetworkClient implements NetworkClient {
      * This class provides the body content to the real request as expected by
      * the backing HTTP client.
      */
-    private static final class JsonRequestBody extends RequestBody {
-        private final byte[] payload;
+    private static final class DefaultRequestBody extends RequestBody {
 
-        private JsonRequestBody(final byte[] payload) {
-            this.payload = payload == null ?
-                    new byte[0] :
-                    payload;
+        /**
+         * Prepares a new instance of the {@code DefaultRequestBody} class with
+         * the given payload and content type, or null if payload is null.
+         *
+         * @param payload     The request body as a byte array.
+         * @param contentType The content type of the request body.
+         * @return A request body wrapper object or null if a null pointer
+         * payload is provided.
+         */
+        private static DefaultRequestBody prepare(final byte[] payload,
+                                                  final String contentType) {
+            return payload != null ?
+                    new DefaultRequestBody(payload, contentType) :
+                    null;
+        }
+
+        private final byte[] payload;
+        private final String contentType;
+
+        private DefaultRequestBody(final byte[] payload,
+                                   final String contentType) {
+            this.contentType = contentType;
+            this.payload = payload;
         }
 
         @Override
         public MediaType contentType() {
-            return MediaType.parse("application/json");
+            return MediaType.parse(contentType);
         }
 
         @Override
@@ -271,19 +289,21 @@ public class DefaultNetworkClient implements NetworkClient {
     public byte[] execute(final String url,
                           final String method,
                           final List<Header> headers,
-                          final byte[] payload) {
+                          final byte[] payload,
+                          final String contentType) {
 
-        return executeWithFallback(url, method, headers, payload, false);
+        return executeWithFallback(url, method, headers, payload, contentType, false);
     }
 
     /**
      * Internal implementation of the {@link #execute(String, String, List,
-     * byte[])} method.
+     * byte[], String)} method.
      */
     private byte[] executeWithFallback(final String url,
                                        final String method,
                                        final List<Header> headers,
                                        final byte[] payload,
+                                       final String contentType,
                                        final boolean doFallback) {
 
         if (okHttpClient == null)
@@ -291,9 +311,7 @@ public class DefaultNetworkClient implements NetworkClient {
 
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
-        requestBuilder.method(method, payload != null ?
-                new JsonRequestBody(payload) :
-                null);
+        requestBuilder.method(method, DefaultRequestBody.prepare(payload, contentType));
         requestBuilder.cacheControl(new CacheControl.Builder()
                 .maxStale(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
                 .build());
@@ -318,7 +336,7 @@ public class DefaultNetworkClient implements NetworkClient {
             // is enabled in settings.
             if (!doFallback && settings.maxFallbackStaleDuration > 0) {
                 info("Attempting a cache fallback: %s", url);
-                return executeWithFallback(url, method, headers, payload, true);
+                return executeWithFallback(url, method, headers, payload, contentType, true);
             }
 
             // No fallback, throw exception.

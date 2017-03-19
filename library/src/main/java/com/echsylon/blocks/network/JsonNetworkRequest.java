@@ -31,6 +31,7 @@ import java.util.concurrent.FutureTask;
 public final class JsonNetworkRequest<T> extends FutureTask<T> implements Request<T> {
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5);
     private static final Object LAST_REQUEST_LOCK = new Object();
+    private static final String JSON_CONTENT_TYPE = "application/json";
     private static JsonNetworkRequest lastRequest;
 
     /**
@@ -77,7 +78,7 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
                             jsonParser.toJson(payload).getBytes() :
                             null;
 
-                    byte[] responseBytes = networkClient.execute(url, method, headers, payloadBytes);
+                    byte[] responseBytes = networkClient.execute(url, method, headers, payloadBytes, JSON_CONTENT_TYPE);
                     String responseJson = new String(responseBytes);
 
                     return jsonParser.fromJson(responseJson, expectedResultType);

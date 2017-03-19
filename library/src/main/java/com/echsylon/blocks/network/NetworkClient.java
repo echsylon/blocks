@@ -25,15 +25,17 @@ public interface NetworkClient {
     /**
      * Performs a synchronous network request.
      *
-     * @param url     The target URL of the request.
-     * @param method  The HTTP method.
-     * @param headers Any optional key/value header pairs. May be null.
-     * @param payload Any optional data to send. May be null.
+     * @param url         The target URL of the request.
+     * @param method      The HTTP method.
+     * @param headers     Any optional key/value header pairs. May be null.
+     * @param payload     Any optional data to send. May be null.
+     * @param contentType The type of payload being sent. May be null.
      * @return The server response as a byte array.
      */
-    byte[] execute(String url,
-                   String method,
-                   List<Header> headers,
-                   byte[] payload);
+    byte[] execute(final String url,
+                   final String method,
+                   final List<Header> headers,
+                   final byte[] payload,
+                   final String contentType);
 
 }
