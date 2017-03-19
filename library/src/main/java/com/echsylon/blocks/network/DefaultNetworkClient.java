@@ -294,16 +294,13 @@ public class DefaultNetworkClient implements NetworkClient {
         requestBuilder.method(method, payload != null ?
                 new JsonRequestBody(payload) :
                 null);
+        requestBuilder.cacheControl(new CacheControl.Builder()
+                .maxStale(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
+                .build());
 
         if (headers != null)
             Stream.of(headers)
                     .forEach(header -> requestBuilder.addHeader(header.key, header.value));
-
-        if (doFallback && settings.maxFallbackStaleDuration > 0)
-            requestBuilder.cacheControl(new CacheControl.Builder()
-                    .maxStale(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
-                    .onlyIfCached()
-                    .build());
 
         try {
             Request request = requestBuilder.build();
