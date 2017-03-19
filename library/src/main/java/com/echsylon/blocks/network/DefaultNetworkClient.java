@@ -124,7 +124,7 @@ public class DefaultNetworkClient implements NetworkClient {
          *
          * @param seconds The max age in seconds.
          */
-        public void maxFallbackStaleDuration(int seconds) {
+        public void maxFallbackStaleDuration(final int seconds) {
             maxFallbackStaleDuration = seconds;
         }
 
@@ -143,7 +143,7 @@ public class DefaultNetworkClient implements NetworkClient {
          *
          * @param seconds The time to live in seconds.
          */
-        public void maybeForcedCacheDuration(int seconds) {
+        public void maybeForcedCacheDuration(final int seconds) {
             maybeForcedCacheDuration = seconds;
         }
 
@@ -162,7 +162,7 @@ public class DefaultNetworkClient implements NetworkClient {
          *
          * @param seconds The time to live in seconds.
          */
-        public void forcedCacheDuration(int seconds) {
+        public void forcedCacheDuration(final int seconds) {
             forcedCacheDuration = seconds;
         }
 
@@ -187,7 +187,7 @@ public class DefaultNetworkClient implements NetworkClient {
         }
 
         @Override
-        public void writeTo(BufferedSink sink) throws IOException {
+        public void writeTo(final BufferedSink sink) throws IOException {
             sink.write(payload);
         }
     }
@@ -232,7 +232,7 @@ public class DefaultNetworkClient implements NetworkClient {
     /**
      * Intentionally hidden constructor
      */
-    private DefaultNetworkClient(Settings settings) {
+    private DefaultNetworkClient(final Settings settings) {
         File cacheDir = settings.cacheDirectory();
         Cache cache = cacheDir != null ?
                 new Cache(cacheDir, settings.maxCacheSizeBytes()) :
@@ -268,10 +268,23 @@ public class DefaultNetworkClient implements NetworkClient {
      *                                 occurred.
      */
     @Override
-    public byte[] execute(String url,
-                          String method,
-                          List<Header> headers,
-                          byte[] payload) {
+    public byte[] execute(final String url,
+                          final String method,
+                          final List<Header> headers,
+                          final byte[] payload) {
+
+        return executeWithFallback(url, method, headers, payload, false);
+    }
+
+    /**
+     * Internal implementation of the {@link #execute(String, String, List,
+     * byte[])} method.
+     */
+    private byte[] executeWithFallback(final String url,
+                                       final String method,
+                                       final List<Header> headers,
+                                       final byte[] payload,
+                                       final boolean doFallback) {
 
         if (okHttpClient == null)
             throw new IllegalStateException("Calling execute() after shutdown() was called");
@@ -286,9 +299,10 @@ public class DefaultNetworkClient implements NetworkClient {
             Stream.of(headers)
                     .forEach(header -> requestBuilder.addHeader(header.key, header.value));
 
-        if (settings.maxFallbackStaleDuration > 0)
+        if (doFallback && settings.maxFallbackStaleDuration > 0)
             requestBuilder.cacheControl(new CacheControl.Builder()
-                    .maxAge(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
+                    .maxStale(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
+                    .onlyIfCached()
                     .build());
 
         try {
@@ -302,6 +316,15 @@ public class DefaultNetworkClient implements NetworkClient {
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {
             info(e, "Couldn't execute request due to a connectivity error: %s", url);
+
+            // Only fallback if not already in fallback mode and fallback
+            // is enabled in settings.
+            if (!doFallback && settings.maxFallbackStaleDuration > 0) {
+                info("Attempting a cache fallback: %s", url);
+                return executeWithFallback(url, method, headers, payload, true);
+            }
+
+            // No fallback, throw exception.
             throw new NoConnectionException(e);
         } catch (IllegalStateException e) {
             info(e, "This request instance has already been executed: %s", url);
@@ -362,7 +385,7 @@ public class DefaultNetworkClient implements NetworkClient {
         // Force any hard client side cache settings
         if (settings.forcedCacheDuration > 0)
             response = response.newBuilder()
-                    .header("Cache-Control", "max-age=" +
+                    .header("Cache-Control", "public, max-age=" +
                             settings.forcedCacheDuration)
                     .build();
 
@@ -370,7 +393,7 @@ public class DefaultNetworkClient implements NetworkClient {
         if (settings.maybeForcedCacheDuration > 0 &&
                 response.header("Cache-Control") == null)
             response = response.newBuilder()
-                    .header("Cache-Control", "max-age=" +
+                    .header("Cache-Control", "public, max-age=" +
                             settings.maybeForcedCacheDuration)
                     .build();
 
