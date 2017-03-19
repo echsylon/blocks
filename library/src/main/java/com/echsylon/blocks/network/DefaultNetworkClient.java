@@ -35,19 +35,73 @@ public class DefaultNetworkClient implements NetworkClient {
 
     /**
      * This class allows the caller to configure the network client behavior.
-     * Any custom implementations are encouraged to override members of this
-     * default implementation.
+     * Some settings, cache settings (directory and size), or redirect settings
+     * are only read once during the life time of the parent network client.
+     * Other settings may change during runtime.
      */
     public static class Settings {
+        private final File cacheDirectory;
+        private final int cacheSizeBytes;
+        private final boolean followSslRedirects;
+        private final boolean followRedirects;
+
+        private int maxFallbackStaleDuration = 0;
         private int maybeForcedCacheDuration = 0;
         private int forcedCacheDuration = 0;
+
+        /**
+         * Creates a default settings object with no cache and allowing all
+         * kinds of redirects.
+         */
+        public Settings() {
+            this.cacheDirectory = null;
+            this.cacheSizeBytes = 4 * 1024 * 1024; // 4MB
+            this.followRedirects = true;
+            this.followSslRedirects = true;
+        }
+
+        /**
+         * Creates a new settings object with custom configuration.
+         *
+         * @param cacheDirectory     The directory to store response caches in.
+         * @param cacheSizeBytes     The maximum size of the cache.
+         * @param followRedirects    Whether to follow redirects or not.
+         * @param followSslRedirects Whether to follow SSL redirects that
+         *                           redirect to non-SSL endpoints or not.
+         */
+        public Settings(final File cacheDirectory,
+                        final int cacheSizeBytes,
+                        final boolean followRedirects,
+                        final boolean followSslRedirects) {
+
+            this.cacheDirectory = cacheDirectory;
+            this.cacheSizeBytes = cacheSizeBytes;
+            this.followRedirects = followRedirects;
+            this.followSslRedirects = followSslRedirects;
+        }
+
+        /**
+         * @return The directory to cache data in. Null means no cache. Defaults
+         * to null.
+         */
+        public File cacheDirectory() {
+            return cacheDirectory;
+        }
+
+        /**
+         * @return The maximum amount of bytes to use for caching. Ignored if no
+         * cache directory is provided. Defaults to 4MB
+         */
+        public long maxCacheSizeBytes() {
+            return cacheSizeBytes;
+        }
 
         /**
          * @return Boolean true if redirects should be followed. Defaults to
          * true.
          */
         public boolean followRedirects() {
-            return true;
+            return followRedirects;
         }
 
         /**
@@ -55,36 +109,26 @@ public class DefaultNetworkClient implements NetworkClient {
          * Defaults to true.
          */
         public boolean followSslRedirects() {
-            return true;
+            return followSslRedirects;
         }
 
         /**
-         * @return Boolean true if cached content should be returned on
-         * connectivity errors. Defaults to false. Note that it's the clients
-         * and servers responsibility to provide proper cache headers to
-         * populate the cache in the first place.
-         */
-        public boolean fallbackToCache() {
-            return false;
-        }
-
-        /**
-         * @return The max age in seconds of a cache entry to accept when
-         * falling back to cached content.
+         * @return The max age in seconds of a cache entry to accept if and when
+         * falling back to cached content. Zero (0) means don't fall back to
+         * cache. Defaults to zero.
          */
         public int maxFallbackCacheStale() {
-            return 0;
+            return maxFallbackStaleDuration;
         }
 
         /**
-         * Sets the time to force-cache responses that the server doesn't
-         * specify any cache metrics for. Zero (0) means don't cache. Defaults
-         * to zero.
+         * Sets the maximum accepted age of cached content when falling back to
+         * cache.
          *
-         * @param seconds The time to live in seconds.
+         * @param seconds The max age in seconds.
          */
-        public void maybeForceCache(int seconds) {
-            maybeForcedCacheDuration = seconds;
+        public void maxFallbackStaleDuration(int seconds) {
+            maxFallbackStaleDuration = seconds;
         }
 
         /**
@@ -96,39 +140,35 @@ public class DefaultNetworkClient implements NetworkClient {
         }
 
         /**
-         * Sets the time to force-cache server responses for. This method will
-         * override any server provided cache constraints. Zero (0) means don't
-         * cache. Defaults to zero.
+         * Sets the time to force-cache responses that the server doesn't
+         * specify any cache metrics for. Zero (0) means don't cache. Defaults
+         * to zero.
          *
          * @param seconds The time to live in seconds.
          */
-        public void forceCache(int seconds) {
-            forcedCacheDuration = seconds;
+        public void maybeForcedCacheDuration(int seconds) {
+            maybeForcedCacheDuration = seconds;
         }
 
         /**
          * @return The number of seconds any server response will currently be
          * cached for.
          */
-        public int forcedCacheSeconds() {
+        public int forcedCacheDuration() {
             return forcedCacheDuration;
         }
 
         /**
-         * @return The directory to cache data in. Null means no cache. Defaults
-         * to no cache (returns null).
+         * Sets the time to force-cache server responses for. This method will
+         * override any server provided cache constraints. Zero (0) means don't
+         * cache. Defaults to zero.
+         *
+         * @param seconds The time to live in seconds.
          */
-        public File cacheDirectory() {
-            return null;
+        public void forcedCacheDuration(int seconds) {
+            forcedCacheDuration = seconds;
         }
 
-        /**
-         * @return The maximum amount of bytes to use for caching. Ignored if no
-         * cache directory is provided.
-         */
-        public long maxCacheSizeBytes() {
-            return 0;
-        }
     }
 
     /**
@@ -236,19 +276,6 @@ public class DefaultNetworkClient implements NetworkClient {
                           List<Header> headers,
                           byte[] payload) {
 
-        return execute(url, method, headers, payload, false);
-    }
-
-    /**
-     * Same as {@link #execute(String, String, List, byte[])} but with an
-     * additional fallback flag controlling any fallback-to-cache behavior.
-     */
-    private byte[] execute(final String url,
-                           final String method,
-                           final List<Header> headers,
-                           final byte[] payload,
-                           final boolean isFallback) {
-
         if (okHttpClient == null)
             throw new IllegalStateException("Calling execute() after shutdown() was called");
 
@@ -262,9 +289,9 @@ public class DefaultNetworkClient implements NetworkClient {
             Stream.of(headers)
                     .forEach(header -> requestBuilder.addHeader(header.key, header.value));
 
-        if (isFallback)
+        if (settings.maxFallbackStaleDuration > 0)
             requestBuilder.cacheControl(new CacheControl.Builder()
-                    .maxAge(settings.maxFallbackCacheStale(), TimeUnit.SECONDS)
+                    .maxAge(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
                     .build());
 
         try {
@@ -278,13 +305,20 @@ public class DefaultNetworkClient implements NetworkClient {
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {
             info(e, "Couldn't execute request due to a connectivity error: %s", url);
-            if (!isFallback && settings.fallbackToCache())
-                return execute(url, method, headers, payload, true);
             throw new NoConnectionException(e);
         } catch (IllegalStateException e) {
             info(e, "This request instance has already been executed: %s", url);
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Exposes the settings object of the current network client instance.
+     *
+     * @return The partially editable settings object.
+     */
+    public Settings settings() {
+        return settings;
     }
 
     /**
