@@ -18,7 +18,7 @@ public class DefaultJsonParser implements JsonParser {
     }
 
     /**
-     * Injects a custom JSON -> POJO adapter for a certain data type.
+     * Injects a custom JSON to POJO adapter for a certain data type.
      *
      * @param type         The default type of the POJO to insert the custom
      *                     adapter for.
@@ -31,7 +31,7 @@ public class DefaultJsonParser implements JsonParser {
     }
 
     /**
-     * Injects a custom POJO -> JSON adapter for a certain data type.
+     * Injects a custom POJO to JSON adapter for a certain data type.
      *
      * @param type       The default type of the POJO to insert the custom
      *                   adapter for.
