@@ -6,10 +6,12 @@ This is a simple callback infrastructure. It will allow you to define "tasks" an
 ## Include
 Add below gradle dependencies in your module build script like so:
 
+```groovy
 dependencies {
     compile 'com.echsylon.blocks:callback:1.0.0'
     compile 'com.echsylon.blocks:network:{version}'
 }
+```
 
 ## The `JsonNetworkRequest` implementation: Seperation of concerns
 
