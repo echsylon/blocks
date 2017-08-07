@@ -32,22 +32,70 @@ import static com.echsylon.blocks.network.Utils.info;
  */
 @SuppressWarnings("WeakerAccess")
 public class DefaultNetworkClient implements NetworkClient {
+    /**
+     * This class can build and prepare a default network client with custom
+     * caching metrics. It's prepared for any application specific domain object
+     * to extend.
+     *
+     * @param <T> The type of the extending class. The cache configuration
+     *            methods are forced to type cast and return such an object.
+     */
+    public static class Builder<T extends Builder> {
+        protected final DefaultNetworkClient defaultNetworkClient = new DefaultNetworkClient();
+
+        /**
+         * Sets a forced cache age for a success response to this request. This
+         * cache age will override any cache metrics provided by the server.
+         *
+         * @param seconds The max age in seconds.
+         * @return This builder object, allowing method chaining.
+         */
+        @SuppressWarnings("unchecked")
+        public T hardCache(int seconds) {
+            defaultNetworkClient.forcedCacheDuration = seconds;
+            return (T) this;
+        }
+
+        /**
+         * Sets an optional cache age for a success response to this request.
+         * This cache age will only be honored if the server doesn't provide any
+         * cache metrics.
+         *
+         * @param seconds The max age in seconds.
+         * @return This builder object, allowing method chaining.
+         */
+        @SuppressWarnings("unchecked")
+        public T softCache(int seconds) {
+            defaultNetworkClient.maybeForcedCacheDuration = seconds;
+            return (T) this;
+        }
+
+        /**
+         * Sets a max age of expired cache entries during which they will still
+         * be accepted.
+         *
+         * @param seconds The max age in seconds.
+         * @return This builder object, allowing method chaining.
+         */
+        @SuppressWarnings("unchecked")
+        public T maxStale(int seconds) {
+            defaultNetworkClient.maxStaleDuration = seconds;
+            return (T) this;
+        }
+    }
 
     /**
-     * This class allows the caller to configure the network client behavior.
-     * Some settings, cache settings (directory and size), or redirect settings
-     * are only read once during the life time of the parent network client.
-     * Other settings may change during runtime.
+     * This class allows the caller to configure the com.echsylon.blocks.network
+     * client behavior. Some settings, cache settings (directory and size), or
+     * redirect settings are only read once during the life time of the parent
+     * com.echsylon.blocks.network client. Other settings may change during
+     * runtime.
      */
     public static class Settings {
         private final File cacheDirectory;
         private final int cacheSizeBytes;
         private final boolean followSslRedirects;
         private final boolean followRedirects;
-
-        private int maxFallbackStaleDuration = 0;
-        private int maybeForcedCacheDuration = 0;
-        private int forcedCacheDuration = 0;
 
         /**
          * Creates a default settings object with no cache and allowing all
@@ -109,63 +157,6 @@ public class DefaultNetworkClient implements NetworkClient {
             return followSslRedirects;
         }
 
-        /**
-         * @return The max age in seconds of a cache entry to accept if and when
-         * falling back to cached content. Zero (0) means don't fall back to
-         * cache. Defaults to zero.
-         */
-        public int maxFallbackStaleDuration() {
-            return maxFallbackStaleDuration;
-        }
-
-        /**
-         * Sets the maximum accepted age of cached content when falling back to
-         * cache.
-         *
-         * @param seconds The max age in seconds.
-         */
-        public void maxFallbackStaleDuration(final int seconds) {
-            maxFallbackStaleDuration = seconds;
-        }
-
-        /**
-         * @return The number of seconds any unconstrained server responses will
-         * currently be cached for.
-         */
-        public int maybeForcedCacheDuration() {
-            return maybeForcedCacheDuration;
-        }
-
-        /**
-         * Sets the time to force-cache responses that the server doesn't
-         * specify any cache metrics for. Zero (0) means don't cache. Defaults
-         * to zero.
-         *
-         * @param seconds The time to live in seconds.
-         */
-        public void maybeForcedCacheDuration(final int seconds) {
-            maybeForcedCacheDuration = seconds;
-        }
-
-        /**
-         * @return The number of seconds any server response will currently be
-         * cached for.
-         */
-        public int forcedCacheDuration() {
-            return forcedCacheDuration;
-        }
-
-        /**
-         * Sets the time to force-cache server responses for. This method will
-         * override any server provided cache constraints. Zero (0) means don't
-         * cache. Defaults to zero.
-         *
-         * @param seconds The time to live in seconds.
-         */
-        public void forcedCacheDuration(final int seconds) {
-            forcedCacheDuration = seconds;
-        }
-
     }
 
     /**
@@ -173,7 +164,6 @@ public class DefaultNetworkClient implements NetworkClient {
      * the backing HTTP client.
      */
     private static final class DefaultRequestBody extends RequestBody {
-
         /**
          * Prepares a new instance of the {@code DefaultRequestBody} class with
          * the given payload and content type, or null if payload is null.
@@ -211,53 +201,31 @@ public class DefaultNetworkClient implements NetworkClient {
     }
 
     /**
-     * Initializes the runtime state of the single {@code DefaultNetworkClient}
-     * object with the supplied settings. Any previously created instance is
-     * forcefully shut down and replaced with this new instance.
-     *
-     * @param settings The custom settings to initialize the new instance with.
-     * @return The singleton instance of this class. Never null.
+     * Enables means of injecting default settings that will apply to all new
+     * instances of this network client implementation.
      */
-    public static DefaultNetworkClient createNewInstance(final Settings settings) {
-        if (instance != null) {
-            instance.shutdownNow();
-            instance = null;
-        }
-
-        instance = new DefaultNetworkClient(settings == null ?
+    public static void settings(final Settings newSettings) {
+        settings = newSettings == null ?
                 new Settings() :
-                settings);
-
-        return instance;
+                newSettings;
     }
 
-    /**
-     * Ensures there is a singleton instance of this class and returns it.
-     *
-     * @return The singleton instance of this class. Never null.
-     */
-    public static DefaultNetworkClient getInstance() {
-        return instance == null ?
-                createNewInstance(null) :
-                instance;
-    }
+    private static OkHttpClient okHttpClient;
+    private static Settings settings;
+    private int maxStaleDuration = 0;
+    private int maybeForcedCacheDuration = 0;
+    private int forcedCacheDuration = 0;
 
+    public DefaultNetworkClient() {
+        if (settings == null)
+            settings = new Settings();
 
-    private static DefaultNetworkClient instance;
-    private OkHttpClient okHttpClient;
-    private Settings settings;
-
-    /**
-     * Intentionally hidden constructor
-     */
-    private DefaultNetworkClient(final Settings settings) {
         File cacheDir = settings.cacheDirectory();
         Cache cache = cacheDir != null ?
                 new Cache(cacheDir, settings.maxCacheSizeBytes()) :
                 null;
 
-        this.settings = settings;
-        this.okHttpClient = new OkHttpClient.Builder()
+        okHttpClient = new OkHttpClient.Builder()
                 .addNetworkInterceptor(this::maybeOverrideCacheControl)
                 .followSslRedirects(settings.followSslRedirects())
                 .followRedirects(settings.followRedirects())
@@ -296,67 +264,6 @@ public class DefaultNetworkClient implements NetworkClient {
     }
 
     /**
-     * Internal implementation of the {@link #execute(String, String, List,
-     * byte[], String)} method.
-     */
-    private byte[] executeWithFallback(final String url,
-                                       final String method,
-                                       final List<Header> headers,
-                                       final byte[] payload,
-                                       final String contentType,
-                                       final boolean doFallback) {
-
-        if (okHttpClient == null)
-            throw new IllegalStateException("Calling execute() after shutdown() was called");
-
-        Request.Builder requestBuilder = new Request.Builder();
-        requestBuilder.url(url);
-        requestBuilder.method(method, DefaultRequestBody.prepare(payload, contentType));
-        requestBuilder.cacheControl(new CacheControl.Builder()
-                .maxStale(settings.maxFallbackStaleDuration, TimeUnit.SECONDS)
-                .build());
-
-        if (headers != null)
-            Stream.of(headers)
-                    .forEach(header -> requestBuilder.addHeader(header.key, header.value));
-
-        try {
-            Request request = requestBuilder.build();
-            Call call = okHttpClient.newCall(request);
-            Response response = call.execute();
-
-            if (response.isSuccessful())
-                return response.body().bytes();
-
-            throw new ResponseStatusException(response.code(), response.message());
-        } catch (IOException e) {
-            info(e, "Couldn't execute request due to a connectivity error: %s", url);
-
-            // Only fallback if not already in fallback mode and fallback
-            // is enabled in settings.
-            if (!doFallback && settings.maxFallbackStaleDuration > 0) {
-                info("Attempting a cache fallback: %s", url);
-                return executeWithFallback(url, method, headers, payload, contentType, true);
-            }
-
-            // No fallback, throw exception.
-            throw new NoConnectionException(e);
-        } catch (IllegalStateException e) {
-            info(e, "This request instance has already been executed: %s", url);
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Exposes the settings object of the current network client instance.
-     *
-     * @return The partially editable settings object.
-     */
-    public Settings settings() {
-        return settings;
-    }
-
-    /**
      * Forces the DefaultNetworkClient to aggressively release its internal
      * resources and reset it's state.
      * <p>
@@ -387,6 +294,58 @@ public class DefaultNetworkClient implements NetworkClient {
     }
 
     /**
+     * Internal implementation of the {@link #execute(String, String, List,
+     * byte[], String)} method.
+     */
+    private byte[] executeWithFallback(final String url,
+                                       final String method,
+                                       final List<Header> headers,
+                                       final byte[] payload,
+                                       final String contentType,
+                                       final boolean doFallback) {
+
+        if (okHttpClient == null)
+            throw new IllegalStateException("Calling execute() after shutdown() was called");
+
+        Request.Builder requestBuilder = new Request.Builder();
+        requestBuilder.url(url);
+        requestBuilder.method(method, DefaultRequestBody.prepare(payload, contentType));
+        requestBuilder.cacheControl(new CacheControl.Builder()
+                .maxStale(maxStaleDuration, TimeUnit.SECONDS)
+                .build());
+
+        if (headers != null)
+            Stream.of(headers)
+                    .forEach(header -> requestBuilder.addHeader(header.key, header.value));
+
+        try {
+            Request request = requestBuilder.build();
+            Call call = okHttpClient.newCall(request);
+            Response response = call.execute();
+
+            if (response.isSuccessful())
+                return response.body().bytes();
+
+            throw new ResponseStatusException(response.code(), response.message());
+        } catch (IOException e) {
+            info(e, "Couldn't execute request due to a connectivity error: %s", url);
+
+            // Only fallback to expired cache if not already in fallback mode and fallback is
+            // enabled.
+            if (!doFallback && maxStaleDuration > 0) {
+                info("Attempting a cache fallback: %s", url);
+                return executeWithFallback(url, method, headers, payload, contentType, true);
+            }
+
+            // No fallback, throw exception.
+            throw new NoConnectionException(e);
+        } catch (IllegalStateException e) {
+            info(e, "This request instance has already been executed: %s", url);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Applies any forced client side cache control settings.
      *
      * @param chain The OkHttp request chain.
@@ -398,18 +357,17 @@ public class DefaultNetworkClient implements NetworkClient {
         Response response = chain.proceed(chain.request());
 
         // Force any hard client side cache settings
-        if (settings.forcedCacheDuration > 0)
-            response = response.newBuilder()
-                    .header("Cache-Control", "public, max-age=" +
-                            settings.forcedCacheDuration)
+        if (forcedCacheDuration > 0)
+            response = response
+                    .newBuilder()
+                    .header("Cache-Control", "public, max-age=" + forcedCacheDuration)
                     .build();
 
         // Maybe force any client side cache settings
-        if (settings.maybeForcedCacheDuration > 0 &&
-                response.header("Cache-Control") == null)
-            response = response.newBuilder()
-                    .header("Cache-Control", "public, max-age=" +
-                            settings.maybeForcedCacheDuration)
+        if (maybeForcedCacheDuration > 0 && response.header("Cache-Control") == null)
+            response = response
+                    .newBuilder()
+                    .header("Cache-Control", "public, max-age=" + maybeForcedCacheDuration)
                     .build();
 
         return response;
