@@ -4,6 +4,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 
+import java.lang.reflect.Type;
+
 /**
  * This class has default knowledge of how to parse JSON into Java objects and
  * Java objects into JSON. It's relying heavily on Google Gson for doing this.
@@ -48,13 +50,33 @@ public class DefaultJsonParser implements JsonParser {
      *
      * @param json               The raw json to parse.
      * @param expectedResultType The class definition of the resulting object.
-     * @param <T>                The type definition of the resulting object.
+     * @param <T>                The generic type of the result.
      * @return The desired POJO.
      * @throws IllegalArgumentException If the JSON couldn't be parsed as the
      *                                  desired object for any reason.
      */
     @Override
     public <T> T fromJson(String json, Class<T> expectedResultType) throws IllegalArgumentException {
+        try {
+            return gsonBuilder
+                    .create()
+                    .fromJson(json, expectedResultType);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Couldn't parse JSON: " + json, e);
+        }
+    }
+
+    /**
+     * Creates a POJO from a JSON string
+     *
+     * @param json               The raw json to parse.
+     * @param expectedResultType The type definition of the resulting object.
+     * @param <T>                The generic type of the result.
+     * @return The desired POJO.
+     * @throws IllegalArgumentException If the JSON couldn't be parsed as the
+     *                                  desired object for any reason.
+     */
+    public <T> T fromJson(String json, Type expectedResultType) throws IllegalArgumentException {
         try {
             return gsonBuilder
                     .create()
