@@ -1,17 +1,10 @@
 package com.echsylon.blocks.network;
 
-import com.echsylon.blocks.callback.DefaultCallbackManager;
-import com.echsylon.blocks.callback.ErrorListener;
-import com.echsylon.blocks.callback.FinishListener;
+import com.echsylon.blocks.callback.DefaultRequest;
 import com.echsylon.blocks.callback.Request;
-import com.echsylon.blocks.callback.SuccessListener;
 
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
 
 /**
  * This is a JSON {@link Request} implementation. It knows how to produce JSON
@@ -28,11 +21,9 @@ import java.util.concurrent.FutureTask;
  *            Void} when expecting intentionally empty results.
  */
 @SuppressWarnings("WeakerAccess")
-public final class JsonNetworkRequest<T> extends FutureTask<T> implements Request<T> {
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(5);
+public final class JsonNetworkRequest<T> extends DefaultRequest<T> {
     private static final Object LAST_REQUEST_LOCK = new Object();
     private static final String JSON_CONTENT_TYPE = "application/json";
-    private static JsonNetworkRequest lastRequest;
 
     /**
      * This class will prepare and enqueue a suitable request object for the
@@ -80,32 +71,30 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
 
                     byte[] responseBytes = networkClient.execute(url, method, headers, payloadBytes, JSON_CONTENT_TYPE);
                     String responseJson = new String(responseBytes);
-
                     return jsonParser.fromJson(responseJson, expectedResultType);
                 };
 
                 lastRequest = new JsonNetworkRequest<>(url, callable);
-                EXECUTOR.submit(lastRequest);
+                enqueue(lastRequest);
             }
-
-            //noinspection unchecked
-            return lastRequest;
         }
+
+        //noinspection unchecked
+        return lastRequest;
     }
 
-    private final DefaultCallbackManager<T> callbackManager;
+    private static JsonNetworkRequest lastRequest;
     private final String tag;
 
     /**
      * Intentionally hidden constructor.
      *
      * @param tag      A tag for this request, may be null.
-     * @param callable The actual job content of this network request.
+     * @param callable The actual job content of this com.echsylon.blocks.network request.
      */
     private JsonNetworkRequest(final String tag, final Callable<T> callable) {
         super(callable);
         this.tag = tag;
-        this.callbackManager = new DefaultCallbackManager<>();
     }
 
     /**
@@ -118,61 +107,11 @@ public final class JsonNetworkRequest<T> extends FutureTask<T> implements Reques
 
         // This method is executed on one of our worker threads. We need to
         // ensure that none of the worker threads interfere with each other
-        // on this single shared "lastRequest" object. Be very, very careful
-        // how long the LAST_REQUEST_LOCK is being held on to as it may block
-        // the main thread (big NO-NO on Android).
+        // on this single shared "lastRequest" object.
         synchronized (LAST_REQUEST_LOCK) {
             if (this == lastRequest)
                 lastRequest = null;
         }
-
-        try {
-            callbackManager.deliverSuccessOnMainThread(get());
-        } catch (InterruptedException | ExecutionException e) {
-            callbackManager.deliverErrorOnMainThread(e.getCause());
-        }
-    }
-
-    /**
-     * Attaches a success listener to this request. Note that the listener will
-     * only be called once and if the request produces an error, the listener
-     * won't be called at all.
-     *
-     * @param listener The success listener.
-     * @return This request object, allowing chaining of requests.
-     */
-    @Override
-    public Request<T> withSuccessListener(SuccessListener<T> listener) {
-        callbackManager.addSuccessListener(listener);
-        return this;
-    }
-
-    /**
-     * Attaches an error listener to this request. Note that the listener will
-     * only be called once and if the request doesn't produce an error, the
-     * listener won't be called at all.
-     *
-     * @param listener The error listener.
-     * @return This request object, allowing chaining of requests.
-     */
-    @Override
-    public Request<T> withErrorListener(ErrorListener listener) {
-        callbackManager.addErrorListener(listener);
-        return this;
-    }
-
-    /**
-     * Attaches a finished state listener to this request. Note that the
-     * listener will be called exactly once regardless if the produced result is
-     * a success or a failure.
-     *
-     * @param listener The finish state listener.
-     * @return This request object, allowing chaining of requests.
-     */
-    @Override
-    public Request<T> withFinishListener(FinishListener listener) {
-        callbackManager.addFinishListener(listener);
-        return this;
     }
 
     /**
