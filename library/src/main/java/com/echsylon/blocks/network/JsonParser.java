@@ -1,22 +1,20 @@
 package com.echsylon.blocks.network;
 
 /**
- * This interface describes the minimum required feature set of a JSON parser in
- * the Blocks infrastructure.
+ * This interface describes the minimum required feature set of a JSON parser.
  */
 public interface JsonParser {
 
     /**
      * Tries to map a JSON structure to a custom Java object instance.
      *
-     * @param json               The raw json to parse.
-     * @param expectedResultType The class definition of the resulting object.
-     * @param <T>                The type of the result class instance.
+     * @param json The raw json to parse.
+     * @param <T>  The type of the result class instance.
      * @return An instance of the expected result class, populated with
      * corresponding data from the raw data object.
      * @throws IllegalArgumentException If the parsing fails for any reason.
      */
-    <T> T fromJson(String json, Class<T> expectedResultType) throws IllegalArgumentException;
+    <T> T fromJson(String json) throws IllegalArgumentException;
 
     /**
      * Tries to create a corresponding JSON string from the accessible fields in

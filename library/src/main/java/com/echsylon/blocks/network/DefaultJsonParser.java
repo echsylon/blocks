@@ -2,9 +2,7 @@ package com.echsylon.blocks.network;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonSerializer;
-
-import java.lang.reflect.Type;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * This class has default knowledge of how to parse JSON into Java objects and
@@ -22,65 +20,29 @@ public class DefaultJsonParser implements JsonParser {
     /**
      * Injects a custom JSON to POJO adapter for a certain data type.
      *
-     * @param type         The default type of the POJO to insert the custom
-     *                     adapter for.
-     * @param deserializer The adapter implementation.
-     * @return This parser implementation, allowing chaining of method calls.
+     * @param adapter The adapter implementation.
      */
-    public DefaultJsonParser registerAdapter(Class type, JsonDeserializer deserializer) {
-        gsonBuilder.registerTypeAdapter(type, deserializer);
-        return this;
-    }
-
-    /**
-     * Injects a custom POJO to JSON adapter for a certain data type.
-     *
-     * @param type       The default type of the POJO to insert the custom
-     *                   adapter for.
-     * @param serializer The adapter implementation.
-     * @return This parser implementation, allowing chaining of method calls.
-     */
-    public DefaultJsonParser registerAdapter(Class type, JsonSerializer serializer) {
-        gsonBuilder.registerTypeAdapter(type, serializer);
-        return this;
+    public void registerAdapter(final JsonAdapter adapter) {
+        gsonBuilder.registerTypeAdapter(Object.class,
+                (JsonDeserializer<Object>) (json, typeOfT, context) ->
+                        adapter.deserialize(json));
     }
 
     /**
      * Creates a POJO from a JSON string.
      *
-     * @param json               The raw json to parse.
-     * @param expectedResultType The class definition of the resulting object.
-     * @param <T>                The generic type of the result.
+     * @param json The raw json to parse.
+     * @param <T>  The generic type of the result.
      * @return The desired POJO.
      * @throws IllegalArgumentException If the JSON couldn't be parsed as the
      *                                  desired object for any reason.
      */
     @Override
-    public <T> T fromJson(String json, Class<T> expectedResultType) throws IllegalArgumentException {
+    public <T> T fromJson(String json) throws IllegalArgumentException {
         try {
             return gsonBuilder
                     .create()
-                    .fromJson(json, expectedResultType);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Couldn't parse JSON: " + json, e);
-        }
-    }
-
-    /**
-     * Creates a POJO from a JSON string
-     *
-     * @param json               The raw json to parse.
-     * @param expectedResultType The type definition of the resulting object.
-     * @param <T>                The generic type of the result.
-     * @return The desired POJO.
-     * @throws IllegalArgumentException If the JSON couldn't be parsed as the
-     *                                  desired object for any reason.
-     */
-    public <T> T fromJson(String json, Type expectedResultType) throws IllegalArgumentException {
-        try {
-            return gsonBuilder
-                    .create()
-                    .fromJson(json, expectedResultType);
+                    .fromJson(json, new TypeToken<T>() {}.getType());
         } catch (Exception e) {
             throw new IllegalArgumentException("Couldn't parse JSON: " + json, e);
         }

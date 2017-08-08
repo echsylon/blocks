@@ -81,7 +81,7 @@ public class DefaultRequestFactory {
 
             byte[] responseBytes = networkClient.execute(url, method, headers, payloadBytes, "application/json");
             String responseJson = new String(responseBytes);
-            return jsonParser.fromJson(responseJson, expectedResultType);
+            return jsonParser.fromJson(responseJson);
         });
     }
 
