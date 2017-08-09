@@ -36,7 +36,7 @@ public class DefaultRequestFactory {
             String contentType = null;
             int last = headers != null ? headers.size() - 1 : -1;
             for (int i = last; i >= 0 && contentType == null; i--)
-                if ("Content-Type".equals(headers.get(i).key))
+                if ("content-type".equals(headers.get(i).key.toLowerCase()))
                     contentType = headers.get(i).value;
 
             return networkClient.execute(url, method, headers, payload, contentType);
@@ -47,16 +47,15 @@ public class DefaultRequestFactory {
      * Enqueues a new JSON request, attempting to transform the given payload to
      * a JSON string.
      *
-     * @param networkClient      The transport to send the request through.
-     * @param url                The target URL.
-     * @param method             The request method.
-     * @param headers            Any optional key/value headers.
-     * @param payload            Any optional payload to send along with the
-     *                           request. Will be serialized as JSON.
-     * @param jsonParser         The JSON parser to use when transforming to and
-     *                           from JSON notation.
-     * @param expectedResultType The class description of the expected result.
-     * @param <T>                The type declaration of the response class.
+     * @param networkClient The transport to send the request through.
+     * @param url           The target URL.
+     * @param method        The request method.
+     * @param headers       Any optional key/value headers.
+     * @param payload       Any optional payload to send along with the request.
+     *                      Will be serialized as JSON.
+     * @param jsonParser    The JSON parser to use when transforming to and from
+     *                      JSON notation.
+     * @param <T>           The type declaration of the response.
      * @return A request object to attach any callback implementations to.
      */
     public static <T> DefaultRequest<T> enqueueJsonRequest(final NetworkClient networkClient,
@@ -64,8 +63,7 @@ public class DefaultRequestFactory {
                                                            final String method,
                                                            final List<NetworkClient.Header> headers,
                                                            final Object payload,
-                                                           final JsonParser jsonParser,
-                                                           final Class<T> expectedResultType) {
+                                                           final JsonParser jsonParser) {
 
         // Don't even try if the required tools aren't provided.
         if (networkClient == null)
