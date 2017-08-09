@@ -31,17 +31,19 @@ import static com.echsylon.blocks.network.Utils.info;
  * domain objects parsed from the returned JSON content.
  */
 @SuppressWarnings("WeakerAccess")
-public class DefaultNetworkClient implements NetworkClient {
+public class OkHttpNetworkClient implements NetworkClient {
+
     /**
-     * This class can build and prepare a default network client with custom
-     * caching metrics. It's prepared for any application specific domain object
-     * to extend.
+     * This class is expected to be extended by custom request builders. It's
+     * sole purpose is to expose a {@code OkHttpNetworkClient} and means of
+     * preparing it with client side enforced cache behavior.
      *
      * @param <T> The type of the extending class. The cache configuration
-     *            methods are forced to type cast and return such an object.
+     *            methods are forced to type cast to and return such an object,
+     *            in order to allow convenient method chaining.
      */
-    public static class Builder<T extends Builder> {
-        protected final DefaultNetworkClient defaultNetworkClient = new DefaultNetworkClient();
+    public static class CachedRequestBuilder<T extends CachedRequestBuilder> {
+        protected final OkHttpNetworkClient okHttpNetworkClient = new OkHttpNetworkClient();
 
         /**
          * Sets a forced cache age for a success response to this request. This
@@ -52,7 +54,7 @@ public class DefaultNetworkClient implements NetworkClient {
          */
         @SuppressWarnings("unchecked")
         public T hardCache(int seconds) {
-            defaultNetworkClient.forcedCacheDuration = seconds;
+            okHttpNetworkClient.forcedCacheDuration = seconds;
             return (T) this;
         }
 
@@ -66,7 +68,7 @@ public class DefaultNetworkClient implements NetworkClient {
          */
         @SuppressWarnings("unchecked")
         public T softCache(int seconds) {
-            defaultNetworkClient.maybeForcedCacheDuration = seconds;
+            okHttpNetworkClient.maybeForcedCacheDuration = seconds;
             return (T) this;
         }
 
@@ -79,7 +81,7 @@ public class DefaultNetworkClient implements NetworkClient {
          */
         @SuppressWarnings("unchecked")
         public T maxStale(int seconds) {
-            defaultNetworkClient.maxStaleDuration = seconds;
+            okHttpNetworkClient.maxStaleDuration = seconds;
             return (T) this;
         }
     }
@@ -216,7 +218,7 @@ public class DefaultNetworkClient implements NetworkClient {
     private int maybeForcedCacheDuration = 0;
     private int forcedCacheDuration = 0;
 
-    public DefaultNetworkClient() {
+    public OkHttpNetworkClient() {
         if (settings == null)
             settings = new Settings();
 
@@ -264,7 +266,7 @@ public class DefaultNetworkClient implements NetworkClient {
     }
 
     /**
-     * Forces the DefaultNetworkClient to aggressively release its internal
+     * Forces the OkHttpNetworkClient to aggressively release its internal
      * resources and reset it's state.
      * <p>
      * Any enqueued requests that isn't actively executing yet are removed
