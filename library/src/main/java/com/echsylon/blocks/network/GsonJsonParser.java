@@ -1,31 +1,19 @@
 package com.echsylon.blocks.network;
 
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
 import com.google.gson.reflect.TypeToken;
 
 /**
  * This class has default knowledge of how to parse JSON into Java objects and
  * Java objects into JSON. It's relying heavily on Google Gson for doing this.
  */
-public class DefaultJsonParser implements JsonParser {
+public class GsonJsonParser implements JsonParser {
 
-    private final GsonBuilder gsonBuilder;
+    public final GsonBuilder gsonBuilder;
 
 
-    public DefaultJsonParser() {
+    public GsonJsonParser() {
         gsonBuilder = new GsonBuilder();
-    }
-
-    /**
-     * Injects a custom JSON to POJO adapter for a certain data type.
-     *
-     * @param adapter The adapter implementation.
-     */
-    public void registerAdapter(final JsonAdapter adapter) {
-        gsonBuilder.registerTypeAdapter(Object.class,
-                (JsonDeserializer<Object>) (json, typeOfT, context) ->
-                        adapter.deserialize(json));
     }
 
     /**
