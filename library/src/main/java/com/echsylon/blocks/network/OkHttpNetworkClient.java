@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
 import okhttp3.CacheControl;
-import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.Interceptor;
@@ -21,7 +20,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import okio.BufferedSink;
+import okhttp3.ResponseBody;
 
 import static com.echsylon.blocks.network.Utils.closeSilently;
 import static com.echsylon.blocks.network.Utils.info;
@@ -162,49 +161,10 @@ public class OkHttpNetworkClient implements NetworkClient {
     }
 
     /**
-     * This class provides the body content to the real request as expected by
-     * the backing HTTP client.
-     */
-    private static final class DefaultRequestBody extends RequestBody {
-        /**
-         * Prepares a new instance of the {@code DefaultRequestBody} class with
-         * the given payload and content type, or null if payload is null.
-         *
-         * @param payload     The request body as a byte array.
-         * @param contentType The content type of the request body.
-         * @return A request body wrapper object or null if a null pointer
-         * payload is provided.
-         */
-        private static DefaultRequestBody prepare(final byte[] payload,
-                                                  final String contentType) {
-            return payload != null ?
-                    new DefaultRequestBody(payload, contentType) :
-                    null;
-        }
-
-        private final byte[] payload;
-        private final String contentType;
-
-        private DefaultRequestBody(final byte[] payload,
-                                   final String contentType) {
-            this.contentType = contentType;
-            this.payload = payload;
-        }
-
-        @Override
-        public MediaType contentType() {
-            return MediaType.parse(contentType);
-        }
-
-        @Override
-        public void writeTo(final BufferedSink sink) throws IOException {
-            sink.write(payload);
-        }
-    }
-
-    /**
      * Enables means of injecting default settings that will apply to all new
      * instances of this network client implementation.
+     *
+     * @param newSettings The new configuration to apply.
      */
     public static void settings(final Settings newSettings) {
         settings = newSettings == null ?
@@ -309,24 +269,35 @@ public class OkHttpNetworkClient implements NetworkClient {
         if (okHttpClient == null)
             throw new IllegalStateException("Calling execute() after shutdown() was called");
 
+        MediaType mime = contentType != null ? MediaType.parse(contentType) : null;
+        RequestBody requestBody = payload != null ? RequestBody.create(mime, payload) : null;
+
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
-        requestBuilder.method(method, DefaultRequestBody.prepare(payload, contentType));
+        requestBuilder.method(method, requestBody);
         requestBuilder.cacheControl(new CacheControl.Builder()
                 .maxStale(maxStaleDuration, TimeUnit.SECONDS)
                 .build());
 
         if (headers != null)
             Stream.of(headers)
-                    .forEach(header -> requestBuilder.addHeader(header.key, header.value));
+                    .forEach(header ->
+                            requestBuilder.addHeader(
+                                    header.key,
+                                    header.value));
 
+        Response response = null;
         try {
-            Request request = requestBuilder.build();
-            Call call = okHttpClient.newCall(request);
-            Response response = call.execute();
+            response = okHttpClient
+                    .newCall(requestBuilder.build())
+                    .execute();
 
-            if (response.isSuccessful())
-                return response.body().bytes();
+            if (response.isSuccessful()) {
+                ResponseBody body = response.body();
+                return body != null ?
+                        body.bytes() :
+                        new byte[0];
+            }
 
             throw new ResponseStatusException(response.code(), response.message());
         } catch (IOException e) {
@@ -344,6 +315,8 @@ public class OkHttpNetworkClient implements NetworkClient {
         } catch (IllegalStateException e) {
             info(e, "This request instance has already been executed: %s", url);
             throw new RuntimeException(e);
+        } finally {
+            closeSilently(response);
         }
     }
 
