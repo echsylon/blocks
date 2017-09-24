@@ -8,7 +8,6 @@ Add below gradle dependencies in your module build script like so:
 
 ```groovy
 dependencies {
-    compile 'com.echsylon.blocks:callback:1.0.0'
     compile 'com.echsylon.blocks:network:{version}'
 }
 ```
@@ -77,6 +76,6 @@ public class Product {
 ```
 
 ## The `DefaultNetworkClien`
-The core of this library is the default `NetworkClient` implementation. Internally it relies on `OkHttp`. The choice of a singleton design pattern is open for debate, but that's how the `OkHttp` client seems to work optimally (even the JavaDoc clearly says: "OkHttpClients should be shared").
+The core of this library is the default `NetworkClient` implementation. Internally it relies on `OkHttp`. The choice of a singleton design pattern is open for debate, but [that's how the `OkHttp` client seems to work optimally](https://github.com/square/okhttp/blob/master/okhttp/src/main/java/okhttp3/OkHttpClient.java).
 
 You can, of course, provide your own `NetworkClient` implementation if the default one doesn't fit your needs.
