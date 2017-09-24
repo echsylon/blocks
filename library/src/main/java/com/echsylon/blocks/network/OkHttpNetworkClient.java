@@ -167,32 +167,47 @@ public class OkHttpNetworkClient implements NetworkClient {
      * @param newSettings The new configuration to apply.
      */
     public static void settings(final Settings newSettings) {
-        settings = newSettings == null ?
-                new Settings() :
-                newSettings;
+        settings = newSettings;
+
+        if (okHttpClient != null) {
+            OkHttpClient.Builder builder = okHttpClient.newBuilder();
+
+            if (settings != null) {
+                builder.followSslRedirects(settings.followSslRedirects());
+                builder.followRedirects(settings.followRedirects());
+                builder.cache(settings.cacheDirectory() != null ?
+                        new Cache(settings.cacheDirectory(), settings.maxCacheSizeBytes()) :
+                        null);
+            }
+
+            okHttpClient = builder.build();
+        }
     }
 
-    private static OkHttpClient okHttpClient;
-    private static Settings settings;
+
+    private static OkHttpClient okHttpClient = null;
+    private static Settings settings = null;
+
     private int maxStaleDuration = 0;
     private int maybeForcedCacheDuration = 0;
     private int forcedCacheDuration = 0;
 
+
     public OkHttpNetworkClient() {
-        if (settings == null)
-            settings = new Settings();
+        if (okHttpClient == null) {
+            OkHttpClient.Builder builder = new OkHttpClient.Builder();
+            builder.addNetworkInterceptor(this::maybeOverrideCacheControl);
 
-        File cacheDir = settings.cacheDirectory();
-        Cache cache = cacheDir != null ?
-                new Cache(cacheDir, settings.maxCacheSizeBytes()) :
-                null;
+            if (settings != null) {
+                builder.followSslRedirects(settings.followSslRedirects());
+                builder.followRedirects(settings.followRedirects());
+                builder.cache(settings.cacheDirectory() != null ?
+                        new Cache(settings.cacheDirectory(), settings.maxCacheSizeBytes()) :
+                        null);
+            }
 
-        okHttpClient = new OkHttpClient.Builder()
-                .addNetworkInterceptor(this::maybeOverrideCacheControl)
-                .followSslRedirects(settings.followSslRedirects())
-                .followRedirects(settings.followRedirects())
-                .cache(cache)
-                .build();
+            okHttpClient = builder.build();
+        }
     }
 
     /**
