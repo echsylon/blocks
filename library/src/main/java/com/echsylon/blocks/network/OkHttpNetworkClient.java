@@ -290,9 +290,11 @@ public class OkHttpNetworkClient implements NetworkClient {
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(url);
         requestBuilder.method(method, requestBody);
-        requestBuilder.cacheControl(new CacheControl.Builder()
-                .maxStale(maxStaleDuration, TimeUnit.SECONDS)
-                .build());
+
+        if (maxStaleDuration > 0)
+            requestBuilder.cacheControl(new CacheControl.Builder()
+                    .maxStale(maxStaleDuration, TimeUnit.SECONDS)
+                    .build());
 
         if (headers != null)
             Stream.of(headers)
